@@ -1,0 +1,239 @@
+/* -------------------------------------------------------
+   GLOBAL PAGE STYLE
+------------------------------------------------------- */
+.ac-page {
+  padding: 20px;
+  background: #f7f8fa;
+  min-height: 100vh;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  margin-left:150px;
+}
+
+.ac-title {
+  font-size: 26px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: #1f2937;
+}
+
+/* -------------------------------------------------------
+   FILTER BAR
+------------------------------------------------------- */
+.ac-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: #ffffff;
+  padding: 15px;
+  border-radius: 12px;
+  box-shadow: 0px 3px 8px rgba(0, 0, 0, 0.08);
+  margin-bottom: 20px;
+}
+
+.ac-search,
+.ac-date,
+.ac-dropdown {
+  padding: 9px 12px;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 14px;
+  width: 200px;
+}
+
+.ac-daterange {
+  display: flex;
+  gap: 8px;
+}
+
+.ac-btn {
+  padding: 10px 18px;
+  font-size: 14px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.ac-btn.export {
+  background: #0d6efd;
+  color: white;
+}
+
+.ac-btn.reset {
+  background: #6c757d;
+  color: white;
+}
+
+/* -------------------------------------------------------
+   SUMMARY CARDS
+------------------------------------------------------- */
+.ac-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.ac-summary .card {
+  background: #ffffff;
+  padding: 18px;
+  border-radius: 14px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+  text-align: center;
+}
+
+.card-title {
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.card-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+}
+
+/* -------------------------------------------------------
+   TOP LINE
+------------------------------------------------------- */
+.ac-topline {
+  background: #ffffff;
+  padding: 12px 16px;
+  border-radius: 10px;
+  margin-bottom: 15px;
+  font-size: 16px;
+  font-weight: 600;
+  box-shadow: 0px 3px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* -------------------------------------------------------
+   TABLE
+------------------------------------------------------- */
+.ac-table-wrap {
+  background: white;
+  padding: 0;
+  border-radius: 12px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+  overflow-x: auto;
+}
+
+.ac-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.ac-table thead {
+  background: #f0f2f5;
+}
+
+.ac-table th {
+  padding: 12px;
+  cursor: pointer;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.ac-table th:hover {
+  background: #e8eaed;
+}
+
+.ac-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.ac-table tbody tr:hover {
+  background: #f7faff;
+}
+
+.amount-green {
+  color: #059669;
+  font-weight: 600;
+}
+
+.amount-red {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+/* -------------------------------------------------------
+   STATUS BADGES
+------------------------------------------------------- */
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  display: inline-block;
+}
+
+/* Dynamic classes */
+.status-badge.active-customer {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.saledeed-done {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.status-badge.cheque-bounce {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.status-badge.refund-done {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.status-badge.booking-cancelled {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+/* -------------------------------------------------------
+   PAGINATION
+------------------------------------------------------- */
+.ac-pagination {
+  margin-top: 20px;
+  padding: 12px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0px 3px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.rows-per select {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+}
+
+.page-controls button {
+  padding: 6px 12px;
+  margin: 0 4px;
+  background: #f3f4f6;
+  border-radius: 6px;
+  font-size: 14px;
+  border: 1px solid #d1d5db;
+  cursor: pointer;
+}
+
+.page-controls button:hover {
+  background: #e5e7eb;
+}
+
+.page-controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

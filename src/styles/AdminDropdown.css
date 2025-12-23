@@ -1,0 +1,49 @@
+.admin-dropdown {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+  margin-left: 15px;
+}
+
+.admin-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.admin-toggle:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.admin-icon {
+  font-size: 22px;
+}
+
+.admin-name {
+  font-weight: 500;
+}
+
+.admin-menu {
+  position: absolute;
+  top: 120%;
+  right: 0;
+  background-color: white;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  border-radius: 8px;
+  overflow: hidden;
+  z-index: 100;
+  min-width: 120px;
+}
+
+.admin-menu-item {
+  padding: 10px;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.admin-menu-item:hover {
+  background-color: #f0f0f0;
+}

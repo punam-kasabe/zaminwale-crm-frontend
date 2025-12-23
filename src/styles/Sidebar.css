@@ -1,0 +1,131 @@
+/* ===================== SIDEBAR ===================== */
+.elastic-sidebar {
+    width: 250px;
+    background: #216FED; /* Zaminbazzar Red */
+    height: 100vh;
+    padding: 22px 18px;
+    font-family: 'Poppins', sans-serif;
+    color: #fff;
+    position: fixed;
+    top: 0;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: all 0.3s ease;
+    z-index: 1000;
+
+    /* Smooth glass glow */
+    box-shadow: 3px 0px 10px rgba(0,0,0,0.15);
+}
+
+/* Logo styling */
+.sidebar-logo img {
+    width: 65px;
+    height: 65px;
+    object-fit: contain;
+    margin-bottom: 12px;
+    border-radius: 50%;
+    background: #ffffff20;
+    padding: 5px;
+    border: 1px solid rgba(255,255,255,0.3);
+    transition: 0.3s ease;
+}
+
+.sidebar-logo img:hover {
+    transform: scale(1.08);
+}
+.active-customers-container {
+  margin-left: 100px;
+  padding: 25px;
+  min-height: 100vh;
+}
+/* Company Name */
+.sidebar-logo h1 {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+/* Navigation Links */
+.elastic-sidebar nav ul {
+    list-style: none;
+    padding: 0;
+    margin-top: 20px;
+    width: 100%;
+}
+
+.elastic-sidebar nav ul li {
+    margin-bottom: 12px;
+}
+
+.elastic-link {
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    color: #ffe5e8; /* light pink red */
+    font-weight: 500;
+    border-radius: 12px;
+    width: 100%;
+    transition: all 0.25s ease;
+}
+
+/* Icon bubble style (matching your screenshot) */
+.elastic-link span.icon {
+    width: 42px;
+    height: 42px;
+    background: rgba(255,255,255,0.18);
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Hover */
+.elastic-link:hover {
+    color: #fff;
+    background-color: rgba(255,255,255,0.11);
+}
+
+/* Active Route */
+.elastic-link.active {
+    color: #216FED;
+    background-color: #fff;
+    font-weight: 600;
+}
+
+.elastic-link.active span.icon {
+    background: #216FED;
+    color: white;
+}
+
+/* Logout Button */
+.logout-btn {
+    width: 100%;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 25px;
+    background-color: #216FED;
+    color: #fff;
+    cursor: pointer;
+    font-weight: bold;
+    margin-top: auto;
+    transition: all 0.25s ease;
+}
+
+.logout-btn:hover {
+    background-color: #216FED;
+    transform: scale(1.05);
+}
+
+/* ===================== MAIN DASHBOARD CONTENT ===================== */
+.dashboard-main {
+    margin-left: 230px;
+    padding: 20px;
+    min-height: 100vh;
+    background-color: #f4f7fe;
+    overflow-y: auto;
+    transition: 0.3s ease;
+}

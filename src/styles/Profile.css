@@ -1,0 +1,110 @@
+/* src/styles/Profile.css */
+.profile-page {
+  padding: 28px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.profile-card {
+  width: 100%;
+  max-width: 720px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(245,245,255,0.85));
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+  padding: 22px;
+  color: #0b2545;
+}
+
+.profile-header {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:700;
+  font-size:28px;
+  background: linear-gradient(135deg,#6f42c1,#4a00e0);
+  color: #fff;
+}
+
+.profile-header h2 {
+  margin: 0 0 4px 0;
+  font-size: 20px;
+}
+
+.muted {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(0,0,0,0.45);
+}
+
+/* body fields */
+.profile-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.field label {
+  width: 120px;
+  font-weight: 600;
+  color: #102a43;
+}
+
+.field .value {
+  background: rgba(0,0,0,0.03);
+  padding: 10px 12px;
+  border-radius: 8px;
+  flex: 1;
+}
+
+.field input {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(0,0,0,0.12);
+  outline: none;
+}
+
+/* actions */
+.profile-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.btn {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  background: #4a00e0;
+  color: #fff;
+  font-weight: 600;
+}
+
+.btn.outline {
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.08);
+  color: #102a43;
+}
+
+.btn.danger {
+  background: #ea5455;
+  color: #fff;
+}
