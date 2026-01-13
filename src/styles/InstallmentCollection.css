@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 /* =============================
    BODY
 ============================= */
@@ -87,6 +88,8 @@
   font-size: 15px;
   color: #555;
 =======
+=======
+>>>>>>> origin/main
 /* ================= PAGE LAYOUT ================= */
 .installment-collection-body {
   padding: 20px 25px;
@@ -142,11 +145,15 @@
   color: #6b7280;
   margin-bottom: 8px;
   font-weight: 500;
+<<<<<<< HEAD
 >>>>>>> b8791e2 (Initial frontend CRM commit)
+=======
+>>>>>>> origin/main
 }
 
 .summary-card p {
   font-size: 22px;
+<<<<<<< HEAD
 <<<<<<< HEAD
   font-weight: bold;
 }
@@ -271,6 +278,8 @@
    PAGINATION
 ============================= */
 =======
+=======
+>>>>>>> origin/main
   font-weight: 700;
   color: #111827;
 }
@@ -395,11 +404,15 @@
 }
 
 /* ================= PAGINATION ================= */
+<<<<<<< HEAD
 >>>>>>> b8791e2 (Initial frontend CRM commit)
+=======
+>>>>>>> origin/main
 .pagination {
   display: flex;
   justify-content: center;
   align-items: center;
+<<<<<<< HEAD
 <<<<<<< HEAD
   gap: 10px;
   margin-top: 10px;
@@ -523,6 +536,8 @@
   .installment-box {
     width: 90%;
 =======
+=======
+>>>>>>> origin/main
   gap: 12px;
   margin-top: 15px;
 }
@@ -551,11 +566,15 @@
 @media (max-width: 900px) {
   .summary-cards {
     flex-direction: column;
+<<<<<<< HEAD
 >>>>>>> b8791e2 (Initial frontend CRM commit)
+=======
+>>>>>>> origin/main
   }
 
   .filter-row {
     flex-direction: column;
+<<<<<<< HEAD
 <<<<<<< HEAD
     align-items: center;
   }
@@ -583,12 +602,17 @@
     box-shadow: none;
     border: 1px solid #ccc;
 =======
+=======
+>>>>>>> origin/main
   }
 
   .filter-row input,
   .filter-row select,
   .filter-row button {
     width: 100%;
+<<<<<<< HEAD
 >>>>>>> b8791e2 (Initial frontend CRM commit)
+=======
+>>>>>>> origin/main
   }
 }
