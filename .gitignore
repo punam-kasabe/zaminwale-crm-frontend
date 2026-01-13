@@ -1,11 +1,17 @@
 # dependencies
 node_modules/
-
-# build folder
+.cache/
+dist/
 build/
 
-# env files
+# environment
 .env
 
-# temporary files
-temp-frontend/
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# editor folders
+.vscode/
+.idea/

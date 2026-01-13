@@ -19,6 +19,13 @@ const resolvePhaseName = (phase) => {
 const normalize = (v) =>
   v?.toString().toLowerCase().replace(/\s+/g, "").trim();
 
+// ✅ Date formatter (dd/mm/yyyy)
+const formatDate = (d) => {
+  if (!d) return "-";
+  const date = new Date(d);
+  return date.toLocaleDateString("en-GB");
+};
+
 const ProjectLocation = () => {
   const { customers, loading } = useContext(CustomerContext);
 
@@ -48,12 +55,12 @@ const ProjectLocation = () => {
     "MahaMumbai 4": ["Pali", "Khopoli", "Sudhagad"],
   };
 
-  // ✅ village dropdown list
+  // ✅ villages for selected phase
   const villagesForPhase = useMemo(() => {
     return selectedPhase ? phaseVillageMap[selectedPhase] || [] : [];
   }, [selectedPhase]);
 
-  // ✅ FINAL FILTER
+  // ✅ FILTERED CUSTOMERS
   const filteredCustomers = useMemo(() => {
     if (!selectedProject) return [];
 
@@ -61,7 +68,6 @@ const ProjectLocation = () => {
       const dbPhase = resolvePhaseName(c.phase || c.location);
 
       const matchPhase = selectedPhase ? dbPhase === selectedPhase : true;
-
       const matchVillage = selectedVillage
         ? normalize(c.village) === normalize(selectedVillage)
         : true;
@@ -70,7 +76,7 @@ const ProjectLocation = () => {
     });
   }, [customers, selectedProject, selectedPhase, selectedVillage]);
 
-  // ✅ pagination
+  // ✅ PAGINATION
   const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage) || 1;
   const start = (currentPage - 1) * itemsPerPage;
   const paginatedCustomers = filteredCustomers.slice(start, start + itemsPerPage);
@@ -78,7 +84,6 @@ const ProjectLocation = () => {
   const next = () => setCurrentPage(p => Math.min(p + 1, totalPages));
   const prev = () => setCurrentPage(p => Math.max(p - 1, 1));
 
-  // ✅ reset page on change
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedProject, selectedPhase, selectedVillage]);
@@ -87,7 +92,7 @@ const ProjectLocation = () => {
     <div className="project-location-container">
       <h1>Project Locations</h1>
 
-      {/* ✅ PROJECT DROPDOWN */}
+      {/* PROJECT */}
       <div className="filter-row">
         <label>Select Project:</label>
         <select
@@ -105,7 +110,7 @@ const ProjectLocation = () => {
         </select>
       </div>
 
-      {/* ✅ PHASE DROPDOWN */}
+      {/* PHASE */}
       {selectedProject && (
         <div className="filter-row">
           <label>Select Phase:</label>
@@ -124,7 +129,7 @@ const ProjectLocation = () => {
         </div>
       )}
 
-      {/* ✅ VILLAGE DROPDOWN */}
+      {/* VILLAGE */}
       {selectedPhase && (
         <div className="filter-row">
           <label>Select Village:</label>
@@ -140,10 +145,9 @@ const ProjectLocation = () => {
         </div>
       )}
 
-      {/* ✅ TABLE */}
+      {/* TABLE */}
       {selectedPhase && (
         <div className="location-details">
-
           <h3>
             {selectedProject} → {selectedPhase}
             {selectedVillage && ` → ${selectedVillage}`}
@@ -156,6 +160,8 @@ const ProjectLocation = () => {
               <table className="location-table">
                 <thead>
                   <tr>
+                    <th>Sr No</th>
+                    <th>Date</th>
                     <th>Customer ID</th>
                     <th>Name</th>
                     <th>Village</th>
@@ -165,15 +171,18 @@ const ProjectLocation = () => {
                     <th>Status</th>
                   </tr>
                 </thead>
+
                 <tbody>
                   {paginatedCustomers.map((c, i) => (
                     <tr key={i}>
+                      <td>{start + i + 1}</td>
+                      <td>{formatDate(c.date)}</td>
                       <td>{c.customerId}</td>
                       <td>{c.name}</td>
                       <td>{c.village}</td>
                       <td>{c.phone}</td>
                       <td>{c.bookingArea}</td>
-                      <td>{c.totalAmount?.toLocaleString()}</td>
+                      <td>₹{Number(c.totalAmount || 0).toLocaleString()}</td>
                       <td className={c.status?.includes("Active") ? "active" : "inactive"}>
                         {c.status}
                       </td>
@@ -193,7 +202,6 @@ const ProjectLocation = () => {
           )}
         </div>
       )}
-
     </div>
   );
 };

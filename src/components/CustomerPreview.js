@@ -1,9 +1,22 @@
+// CustomerPreview.js
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import EditCustomerModal from "./EditCustomerModal.js";
 import "./CustomerPreview.css";
+
+// =================== DATE FORMAT FUNCTION ===================
+const formatDMY = (rawDate) => {
+  if (!rawDate) return "-";
+  if (typeof rawDate === "string" && rawDate.match(/^\d{2}-\d{2}-\d{4}$/)) return rawDate;
+  const date = new Date(rawDate);
+  if (isNaN(date)) return rawDate;
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const yyyy = date.getFullYear();
+  return `${dd}-${mm}-${yyyy}`;
+};
 
 function CustomerPreview() {
   const location = useLocation();
@@ -23,11 +36,9 @@ function CustomerPreview() {
   }
 
   const toggleInstallments = () => setExpandedInstallments((prev) => !prev);
+  const handleEditSave = (updatedCustomer) => setCurrentCustomer(updatedCustomer);
 
-  const handleEditSave = (updatedCustomer) => {
-    setCurrentCustomer(updatedCustomer);
-  };
-
+  // =================== PDF Download ===================
   const downloadInvoice = () => {
     const doc = new jsPDF();
     doc.setFontSize(16);
@@ -36,7 +47,7 @@ function CustomerPreview() {
     doc.text("Customer Full Details", 105, 30, null, null, "center");
 
     const details = [
-      ["Date", currentCustomer.date || "-"],
+      ["Date", formatDMY(currentCustomer.date)],
       ["Customer ID", currentCustomer.customerId || "-"],
       ["Name", currentCustomer.name || "-"],
       ["Address", currentCustomer.address || "-"],
@@ -51,7 +62,7 @@ function CustomerPreview() {
       ["Balance", currentCustomer.balanceAmount || "-"],
       ["Discount", currentCustomer.discount || "-"],
       ["Stamp Duty", currentCustomer.stampDutyCharges || "-"],
-      ["Stamp Duty Date", currentCustomer.stampDutyDate || "-"],
+      ["Stamp Duty Date", formatDMY(currentCustomer.stampDutyDate)],
       ["Stamp Duty Payment Mode", currentCustomer.stampDutyPaymentMode || "-"],
       ["Mou Charge", currentCustomer.mouCharge || "-"],
       ["Location", currentCustomer.location || "-"],
@@ -59,7 +70,7 @@ function CustomerPreview() {
       ["Bank", currentCustomer.bankName || "-"],
       ["Payment Mode", currentCustomer.paymentMode || "-"],
       ["Cheque No/UTR", currentCustomer.chequeNo || "-"],
-      ["Cheque Date", currentCustomer.chequeDate || "-"],
+      ["Cheque Date", formatDMY(currentCustomer.chequeDate)],
       ["Remark", currentCustomer.remark || "-"],
       ["Status", currentCustomer.status || "-"],
       ["Calling By", currentCustomer.callingBy || "-"],
@@ -84,14 +95,14 @@ function CustomerPreview() {
     const installmentTable = (currentCustomer.installments || []).map(
       (inst, idx) => [
         idx + 1,
-        inst.installmentDate || "-",
+        formatDMY(inst.installmentDate),
         inst.installmentAmount || "-",
         inst.receivedAmount || "-",
         inst.balanceAmount || "-",
         inst.bankName || "-",
         inst.paymentMode || "-",
         inst.chequeNo || "-",
-        inst.chequeDate || "-",
+        formatDMY(inst.chequeDate),
         inst.status || "-",
         inst.remark || "-",
       ]
@@ -142,6 +153,7 @@ function CustomerPreview() {
     doc.save(`Customer_${currentCustomer.customerId || "Details"}.pdf`);
   };
 
+  // =================== Print Function ===================
   const printInvoice = () => {
     const printWindow = window.open("", "_blank");
     const installmentsRows = (currentCustomer.installments || [])
@@ -149,14 +161,14 @@ function CustomerPreview() {
         (inst, idx) => `
       <tr>
         <td>${idx + 1}</td>
-        <td>${inst.installmentDate || "-"}</td>
+        <td>${formatDMY(inst.installmentDate)}</td>
         <td>${inst.installmentAmount || "-"}</td>
         <td>${inst.receivedAmount || "-"}</td>
         <td>${inst.balanceAmount || "-"}</td>
         <td>${inst.bankName || "-"}</td>
         <td>${inst.paymentMode || "-"}</td>
         <td>${inst.chequeNo || "-"}</td>
-        <td>${inst.chequeDate || "-"}</td>
+        <td>${formatDMY(inst.chequeDate)}</td>
         <td>${inst.status || "-"}</td>
         <td>${inst.remark || "-"}</td>
       </tr>`
@@ -180,7 +192,11 @@ function CustomerPreview() {
           <h2>Customer Full Details</h2>
           ${Object.entries(currentCustomer)
             .filter(([key, val]) => typeof val !== "object" || val === null)
-            .map(([key, val]) => `<div><b>${key}:</b> ${val || "-"}</div>`)
+            .map(([key, val]) => {
+              if (["date", "chequeDate", "stampDutyDate"].includes(key))
+                return `<div><b>${key}:</b> ${formatDMY(val)}</div>`;
+              return `<div><b>${key}:</b> ${val || "-"}</div>`;
+            })
             .join("")}
           <h3>Installments</h3>
           <table>
@@ -208,14 +224,15 @@ function CustomerPreview() {
     printWindow.print();
   };
 
+  // =================== JSX ===================
   return (
     <div className="preview-container">
       <h2>Customer Details: {currentCustomer.name}</h2>
 
-      {/* Customer Fields */}
+      {/* Full 2-Column Layout */}
       <div className="customer-info-grid">
         {[
-          ["Date", currentCustomer.date],
+          ["Date", formatDMY(currentCustomer.date)],
           ["Customer ID", currentCustomer.customerId],
           ["Name", currentCustomer.name],
           ["Address", currentCustomer.address],
@@ -230,15 +247,16 @@ function CustomerPreview() {
           ["Balance", currentCustomer.balanceAmount],
           ["Discount", currentCustomer.discount],
           ["Stamp Duty", currentCustomer.stampDutyCharges],
-          ["Stamp Duty Date", currentCustomer.stampDutyDate],
+          ["Stamp Duty Date", formatDMY(currentCustomer.stampDutyDate)],
           ["Stamp Duty Payment Mode", currentCustomer.stampDutyPaymentMode],
+          ["Legal Charges", `₹${(currentCustomer.legalCharges ?? 15000).toLocaleString("en-IN")}`],
           ["Mou Charge", currentCustomer.mouCharge],
           ["Location", currentCustomer.location],
           ["Village", currentCustomer.village],
           ["Bank", currentCustomer.bankName],
           ["Payment Mode", currentCustomer.paymentMode],
           ["Cheque No / UTR No", currentCustomer.chequeNo],
-          ["Cheque Date", currentCustomer.chequeDate],
+          ["Cheque Date", formatDMY(currentCustomer.chequeDate)],
           ["Remark", currentCustomer.remark],
           ["Status", currentCustomer.status],
           ["Calling By", currentCustomer.callingBy],
@@ -259,8 +277,6 @@ function CustomerPreview() {
         <button className="download-btn" onClick={downloadInvoice}>
           Download PDF
         </button>
-
-        {/* फक्त admin ला Edit button */}
         {user?.role === "admin" && (
           <button
             className="download-btn"
@@ -270,7 +286,6 @@ function CustomerPreview() {
             Edit Customer
           </button>
         )}
-
         <button
           className="download-btn"
           onClick={printInvoice}
@@ -309,14 +324,14 @@ function CustomerPreview() {
               {currentCustomer.installments.map((inst, idx) => (
                 <tr key={idx}>
                   <td>{idx + 1}</td>
-                  <td>{inst.installmentDate || "-"}</td>
+                  <td>{formatDMY(inst.installmentDate)}</td>
                   <td>{inst.installmentAmount || "-"}</td>
                   <td>{inst.receivedAmount || "-"}</td>
                   <td>{inst.balanceAmount || "-"}</td>
                   <td>{inst.bankName || "-"}</td>
                   <td>{inst.paymentMode || "-"}</td>
                   <td>{inst.chequeNo || "-"}</td>
-                  <td>{inst.chequeDate || "-"}</td>
+                  <td>{formatDMY(inst.chequeDate)}</td>
                   <td>{inst.status || "-"}</td>
                   <td>{inst.remark || "-"}</td>
                 </tr>

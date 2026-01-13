@@ -79,11 +79,12 @@
 }
 
 .reports-table th {
-  background-color: #f1f1f1;
+  background: linear-gradient(#404243, #2b5f85, #2465cf);
   font-weight: 600;
   position: sticky;
   top: 0;
   z-index: 1;
+  color:white;
 }
 
 .reports-table tr:hover {

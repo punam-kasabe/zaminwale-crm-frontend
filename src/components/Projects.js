@@ -21,7 +21,7 @@ function Projects({ user }) {
   const [selectedLocation, setSelectedLocation] = useState("");
   const [selectedVillage, setSelectedVillage] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [chartType, setChartType] = useState("bar"); // ← NEW
+  const [chartType, setChartType] = useState("bar");
   const itemsPerPage = 5;
 
   const maskPhone = (phone) => phone.replace(/\d(?=\d{4})/g, "*");
@@ -41,12 +41,13 @@ function Projects({ user }) {
   }, [customers]);
 
   // ---------------- Filter Customers ----------------
-  const filteredCustomers = customers.filter((c) => {
-    let match = true;
-    if (selectedLocation) match = match && c.location === selectedLocation;
-    if (selectedVillage) match = match && c.village === selectedVillage;
-    return match;
-  });
+  const filteredCustomers = useMemo(() => {
+    return customers.filter((c) => {
+      if (selectedLocation && c.location !== selectedLocation) return false;
+      if (selectedVillage && c.village !== selectedVillage) return false;
+      return true;
+    });
+  }, [customers, selectedLocation, selectedVillage]);
 
   // ---------------- Pagination ----------------
   const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
@@ -72,14 +73,15 @@ function Projects({ user }) {
     { label: "Village", key: "village" },
   ];
 
-  // ---------------- ADD GRAPH SECTION ----------------
+  // ---------------- Chart Data ----------------
   const projectStats = useMemo(() => {
+    if (!customers || customers.length === 0) {
+      return { "Zaminwale Pvt Ltd": { count: 0, total: 0 }, "99 Villa": { count: 0, total: 0 } };
+    }
     const stats = {};
     customers.forEach((c) => {
       if (!c.location) return;
-      if (!stats[c.location]) {
-        stats[c.location] = { count: 0, total: 0 };
-      }
+      if (!stats[c.location]) stats[c.location] = { count: 0, total: 0 };
       stats[c.location].count += 1;
       stats[c.location].total += Number(c.totalAmount) || 0;
     });
@@ -107,69 +109,63 @@ function Projects({ user }) {
     <div className="projects-container">
       <h2>🗂 Projects / Locations</h2>
 
-      {/* 🔹 PROJECT GRAPH */}
-      <div className="chart-section">
-        <div className="chart-header">
-          <h3>📊 Project-wise Overview</h3>
-          <button
-            onClick={() => setChartType(chartType === "bar" ? "pie" : "bar")}
-            className="toggle-chart-btn"
-          >
-            Switch to {chartType === "bar" ? "Pie" : "Bar"} Chart
-          </button>
-        </div>
 
-        <div className="chart-wrapper">
-          {chartType === "bar" ? (
-            <Bar data={chartData} options={{ responsive: true }} />
-          ) : (
-            <Pie
-              data={{
-                labels: Object.keys(projectStats),
-                datasets: [
-                  {
-                    data: Object.values(projectStats).map((s) => s.total),
-                    backgroundColor: [
-                      "#4BC0C0",
-                      "#FF6384",
-                      "#FFCE56",
-                      "#36A2EB",
-                      "#9966FF",
-                    ],
-                  },
-                ],
-              }}
-            />
-          )}
-        </div>
+
+      {/* 🔹 CSV Export */}
+      <div style={{ margin: "10px 0" }}>
+        <CSVLink data={filteredCustomers} headers={headers} filename="customers.csv">
+          Export CSV
+        </CSVLink>
       </div>
 
-      {/* बाकी तुझं आधीचं filters + table code खाली ठेवा */}
-      {/* Location Filter */}
+      {/* 🔹 Location Dropdown */}
       <div className="location-filter">
         <h4>Select Location:</h4>
-        {Object.keys(locationsMap).map((loc) => (
-          <button
-            key={loc}
-            className={selectedLocation === loc ? "active" : ""}
-            onClick={() => {
-              setSelectedLocation(loc);
-              setSelectedVillage("");
-              setCurrentPage(1);
-            }}
-          >
-            {loc}
-          </button>
-        ))}
+        <select
+          value={selectedLocation}
+          onChange={(e) => {
+            setSelectedLocation(e.target.value);
+            setSelectedVillage("");
+            setCurrentPage(1);
+          }}
+        >
+          <option value="">-- Select Location --</option>
+          <option value="Zaminwale Pvt Ltd">Zaminwale Pvt Ltd</option>
+          <option value="99 Villa">99 Villa</option>
+        </select>
       </div>
 
+      {/* 🔹 Village Filter */}
+      {selectedLocation && locationsMap[selectedLocation] && (
+        <div className="village-filter">
+          <h4>Select Village:</h4>
+          {locationsMap[selectedLocation].map((vill) => (
+            <button
+              key={vill}
+              className={selectedVillage === vill ? "active" : ""}
+              onClick={() => {
+                setSelectedVillage(vill);
+                setCurrentPage(1);
+              }}
+            >
+              {vill}
+            </button>
+          ))}
+          <button
+            onClick={() => setSelectedVillage("")}
+            className={selectedVillage === "" ? "active" : ""}
+          >
+            All Villages
+          </button>
+        </div>
+      )}
+
+      {/* 🔹 Customer Table */}
       {selectedLocation && (
         <div className="table-wrapper">
           <h4>
-            Customers in "{selectedLocation}"{" "}
-            {selectedVillage && `- ${selectedVillage}`}
+            Customers in "{selectedLocation}" {selectedVillage && `- ${selectedVillage}`}
           </h4>
-
           {loading ? (
             <p>Loading...</p>
           ) : (
@@ -209,6 +205,24 @@ function Projects({ user }) {
                 )}
               </tbody>
             </table>
+          )}
+
+          {/* 🔹 Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="pagination">
+              <button onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 1}>
+                Prev
+              </button>
+              <span>
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </button>
+            </div>
           )}
         </div>
       )}

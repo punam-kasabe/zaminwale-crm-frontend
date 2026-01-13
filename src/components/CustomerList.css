@@ -1,272 +1,217 @@
-/* --- Container --- */
+/* ================================
+   PAGE CONTAINER
+================================ */
 .customer-list-container {
-  margin-left: 130px;
-  padding: 20px;
+  padding: 16px 20px;
+  margin-left: 140px;
+  background: #f4f6fb;
   min-height: 100vh;
-  background: #f5f5f5;
+  font-family: "Segoe UI", Roboto, Arial, sans-serif;
 }
 
-/* --- Customer Table --- */
+/* ================================
+   TOP CONTROLS
+================================ */
+.controls.clean-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  background: #ffffff;
+  padding: 12px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  margin-bottom: 12px;
+}
+
+/* SEARCH */
+.searchbar {
+  position: relative;
+}
+.searchbar input {
+  padding: 8px 12px 8px 32px;
+  border-radius: 6px;
+  border: 1px solid #ffffff;
+  min-width: 260px;
+}
+.search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #777;
+}
+
+/* DROPDOWNS */
+.controls select {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #d0d7e2;
+  background: #fff;
+}
+
+/* BUTTONS */
+.controls button {
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  transition: 0.2s;
+}
+
+.filter-toggle-btn {
+  background: #2563eb;
+  color: #fff;
+}
+.reset-btn {
+  background: #6b7280;
+  color: #fff;
+}
+.export-btn {
+  background: #16a34a;
+  color: #fff;
+}
+.delete-btn {
+  background: #dc2626;
+  color: #fff;
+}
+
+.controls button:hover {
+  opacity: 0.9;
+}
+
+/* ================================
+   TABLE WRAPPER
+================================ */
+.customer-table-wrapper {
+  overflow-x: auto;
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+}
+
+/* ================================
+   TABLE
+================================ */
 .customer-table {
   width: 100%;
   border-collapse: collapse;
-  background-color: #fff;
-  border-radius: 10px;
-  overflow: hidden;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-}
-
-.customer-table th,
-.customer-table td {
-  padding: 10px 12px;
-  text-align: left;
-  font-size: 14px;
-  border-bottom: 1px solid #eee;
-  vertical-align: middle;
-}
-
-.customer-table th {
-  background-color: #216FED;
-  color: #fff;
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  text-transform: uppercase;
   font-size: 13px;
 }
 
-.customer-table tbody tr:nth-child(even) {
-  background-color: #f9f9f9;
+/* HEADER */
+.customer-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: linear-gradient(90deg, #404243, #2b5f85, #2465cf);
+}
+
+.customer-table thead th {
+  color: #ffffff;
+  padding: 10px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  font-weight: 600;
+  border-right: 1px solid rgba(255,255,255,0.2);
+  background: linear-gradient(#2b5f85, #2465cf);
+}
+
+/* BODY */
+.customer-table tbody td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
 }
 
 .customer-table tbody tr:hover {
-  background-color: #e9f5ff;
+  background: #f1f5ff;
 }
 
-.customer-table .clickable-name {
+/* ================================
+   ADDRESS COLUMN WIDTH FIX ✅
+   (Checkbox=1, SrNo=2, Date=3,
+    CustomerId=4, Name=5, Address=6)
+================================ */
+.customer-table th:nth-child(6),
+.customer-table td:nth-child(6) {
+  width: 180px;           /* 👈 adjust if needed */
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* CLICKABLE NAME */
+.clickable-name {
+  color: #2563eb;
+  font-weight: 600;
   cursor: pointer;
-  color: #007bff;
+}
+.clickable-name:hover {
   text-decoration: underline;
 }
 
+/* CHEQUE COLUMN */
+.cheque-column {
+  white-space: pre-line;
+  font-size: 12px;
+}
+
+/* ================================
+   STATUS COLORS
+================================ */
+td[style*="green"] {
+  font-weight: 600;
+}
+td[style*="red"] {
+  font-weight: 600;
+}
+
+/* ================================
+   ACTION BUTTONS
+================================ */
 .customer-table button {
-  padding: 4px 8px;
-  margin-right: 5px;
-  border-radius: 4px;
+  padding: 6px 10px;
+  border-radius: 5px;
   border: none;
   cursor: pointer;
-  font-size: 13px;
-  transition: all 0.2s ease;
+  font-size: 12px;
 }
 
 .customer-table button:hover {
   opacity: 0.85;
 }
 
-.customer-table button:nth-child(1) {
-  background-color: #25D366;
-  color: #fff;
-}
-.customer-table button:nth-child(2) {
-  background-color: #ffc107;
-  color: #333;
-}
-.customer-table button:nth-child(3) {
-  background-color: #dc3545;
-  color: #fff;
-}
-
-/* --- Highlighted Amounts --- */
-.customer-table td:nth-child(13) {
-  color: green;
-  font-weight: bold;
-}
-.customer-table td:nth-child(14) {
-  color: red;
-  font-weight: bold;
-}
-
-/* --- Date & ID width --- */
-.customer-table th:nth-child(2),
-.customer-table td:nth-child(2) {
-  min-width: 150px;
-  text-align: center;
-}
-
-/* --- WhatsApp Button --- */
 .whatsapp-btn {
-  background: #25D366;
-  color: white;
-  padding: 6px 10px;
-  border-radius: 6px;
+  background: #25d366;
+  color: #fff;
   font-size: 16px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
 }
 
-.whatsapp-btn:hover {
-  background: #1DB354;
-}
-
-/* --- Controls / Filters --- */
-.controls.clean-layout {
-  display: flex;
-  justify-content: flex-start;   /* ✅ LEFT ALIGN */
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  padding: 10px;
-}
-
-
-/* --- SEARCHBAR ✅ FIXED FULL --- */
-.controls.clean-layout .searchbar {
-  display: flex;
-  align-items: center;
-  flex: 1 1 250px;
-  max-width: 300px;
-  position: relative;
-  background-color: #fff;
-  border-radius: 30px;
-  padding: 6px 10px;
-}
-
-/* ✅ FIX */
-.controls.clean-layout .searchbar input {
-  width: 100%;
-  padding: 6px 30px 6px 10px;
-  border: none;
-  outline: none;
-  background: transparent;
-
-  color: #000 !important;
-  caret-color: #000 !important;
-  -webkit-text-fill-color: #000 !important;   /* Chrome text bug fix */
-
-  font-size: 14px;
-}
-
-/* focus */
-.controls.clean-layout .searchbar input:focus {
-  color: #000 !important;
-  -webkit-text-fill-color: #000 !important;
-}
-
-/* blur */
-.controls.clean-layout .searchbar input:not(:focus) {
-  color: #000 !important;
-  -webkit-text-fill-color: #000 !important;
-}
-
-/* placeholder */
-.controls.clean-layout .searchbar input::placeholder {
-  color: #777 !important;
-}
-
-/* select */
-.controls.clean-layout .searchbar input::selection {
-  background: #216FED;
-  color: #000000;
-}
-
-/* icon */
-.controls.clean-layout .searchbar .search-icon {
-  position: absolute;
-  right: 8px;
-  color: #555 !important;
-}
-
-/* Buttons & select */
-.controls.clean-layout .filter-toggle-btn,
-.controls.clean-layout .export-btn,
-.controls.clean-layout .page-size-select,
-.controls.clean-layout .record-count {
-  flex-shrink: 0;
-}
-
-.controls.clean-layout .filter-toggle-btn,
-.controls.clean-layout .export-btn {
-  padding: 6px 12px;
-  border-radius: 5px;
-  background-color: #4CAF50;
-  color: white;
-  cursor: pointer;
-  border: none;
-}
-
-.controls.clean-layout .filter-toggle-btn:hover,
-.controls.clean-layout .export-btn:hover {
-  background-color: #45a049;
-}
-
-.controls.clean-layout .page-size-select {
-  padding: 5px;
-  border-radius: 5px;
-  border: 1px solid #ccc;
-}
-
-.controls.clean-layout .record-count {
-  margin-left: auto;
-}
-
-/* --- Pagination --- */
+/* ================================
+   PAGINATION
+================================ */
 .pagination {
-  margin-top: 20px;
+  margin-top: 12px;
   display: flex;
   justify-content: center;
-  gap: 15px;
+  align-items: center;
+  gap: 12px;
 }
 
 .pagination button {
   padding: 6px 14px;
   border-radius: 6px;
-  border: 1px solid #007bff;
-  background-color: #fff;
-  color: #007bff;
-}
-
-.pagination button:hover:not(:disabled) {
-  background-color: #007bff;
+  border: none;
+  background: #2563eb;
   color: #fff;
+  cursor: pointer;
 }
 
 .pagination button:disabled {
-  opacity: 0.5;
-}
-
-/* ✅ DARK THEME SAFE */
-body.dark .searchbar input,
-body.dark .searchbar input:focus,
-body.dark .searchbar input:not(:focus) {
-  color: #000000;
-  caret-color: #000000;
-  -webkit-text-fill-color: #000000;
-}
-
-body.dark .searchbar input::placeholder {
-  color: #bbb !important;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .controls.clean-layout {
-    flex-direction: column;
-  }
-}
-/* ================= DATE & CHEQUE DATE COLUMN ================= */
-.customer-table th:nth-child(3),
-.customer-table td:nth-child(3),
-.customer-table th:nth-child(23),
-.customer-table td:nth-child(23) {
-  min-width: 120px;
-  white-space: nowrap;
-  text-align: center;
-}
-/* ================= CUSTOMER ID COLUMN ================= */
-.customer-table th:nth-child(4),
-.customer-table td:nth-child(4) {
-  min-width: 140px;
-  white-space: nowrap;
-  text-align: center;
+  background: #9ca3af;
+  cursor: not-allowed;
 }

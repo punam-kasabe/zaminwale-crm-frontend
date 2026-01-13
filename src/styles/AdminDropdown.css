@@ -2,7 +2,7 @@
   position: relative;
   display: inline-block;
   cursor: pointer;
-  margin-left: 15px;
+  z-index: 2000; /* ensure dropdown appears above dashboard content */
 }
 
 .admin-toggle {
@@ -28,20 +28,22 @@
 
 .admin-menu {
   position: absolute;
-  top: 120%;
+  top: 110%;
   right: 0;
   background-color: white;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   border-radius: 8px;
   overflow: hidden;
-  z-index: 100;
-  min-width: 120px;
+  z-index: 2000; /* make sure it's above all other content */
+  min-width: 140px;
+  white-space: nowrap; /* prevent text wrap */
 }
 
 .admin-menu-item {
-  padding: 10px;
+  padding: 10px 15px;
   font-size: 14px;
   transition: background 0.2s;
+  cursor: pointer;
 }
 
 .admin-menu-item:hover {

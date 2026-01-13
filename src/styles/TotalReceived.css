@@ -1,225 +1,131 @@
-/* TotalReceived.css - Advanced Professional Layout */
-
-/* ----- Variables ----- */
-:root {
-  --bg: #f6f8fb;
-  --card-bg: #ffffff;
-  --primary-teal: #0ea5a4;
-  --secondary-teal: #14b8a6;
-  --primary-blue: #2563eb;
-  --secondary-blue: #3b82f6;
-  --green: #16a34a;
-  --red: #dc2626;
-  --yellow: #f59e0b;
-  --text-color: #1f2937;
-  --shadow: rgba(0, 0, 0, 0.15);
-  --hover-shadow: rgba(0, 0, 0, 0.2);
-  --border-radius: 12px;
-  --padding: 8px 12px;
-  --transition-speed: 0.2s;
-}
-
-/* Container */
 .total-received-container {
-  background: var(--bg);
-  padding: 25px;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  color: var(--text-color);
-  margin-left:150px;
+  padding: 20px;
+  background: #f4f6f9;
+  margin-left:130px;
 }
 
-/* Header */
-.total-received-container h2 {
-  font-size: 1.8rem;
+/* ================= SUMMARY CARDS ================= */
+.summary-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);   /* 4 cards in one row */
+  gap: 16px;
   margin-bottom: 20px;
-  font-weight: 700;
 }
 
-/* Total Collected Box */
 .total-box {
-  background: var(--card-bg);
-  padding: 22px;
-  border-radius: var(--border-radius);
-  box-shadow: 0 4px 15px var(--shadow);
-  margin-bottom: 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+  background: white;
+  padding: 18px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  text-align: center;
+  transition: 0.3s ease;
 }
 
 .total-box:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px var(--hover-shadow);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
 }
 
 .total-box h3 {
-  margin: 0;
-  font-size: 1.2rem;
+  font-size: 15px;
   color: #555;
+  margin-bottom: 8px;
 }
 
-.total-box .total-amount {
-  font-size: 2rem;
-  font-weight: 700;
-  margin-top: 6px;
-  color: var(--text-color);
+.total-box p {
+  font-size: 22px;
+  font-weight: bold;
+  color: #111;
 }
 
-/* Filter & Export */
+/* Color variants */
+.total-box.sale {
+  border-top: 4px solid #4f46e5;
+}
+
+.total-box.booking {
+  border-top: 4px solid #16a34a;
+}
+
+.total-box.installment {
+  border-top: 4px solid #ea580c;
+}
+
+/* ================= FILTER BAR ================= */
 .filter-container {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-bottom: 20px;
+  background: white;
+  padding: 12px;
+  border-radius: 10px;
+  margin-bottom: 15px;
 }
 
-.filter-container input[type="text"],
+.filter-container input,
 .filter-container select {
-  padding: 8px 14px;
-  border-radius: var(--border-radius);
-  border: 1px solid #ccc;
-  outline: none;
-  font-size: 0.95rem;
-  transition: border var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  font-size: 14px;
 }
 
-.filter-container input[type="text"]:focus,
-.filter-container select:focus {
-  border-color: var(--primary-teal);
-  box-shadow: 0 2px 6px var(--shadow);
-}
-
-.export-btn {
-  padding: 8px 18px;
+.filter-container button {
+  background: #2563eb;
+  color: white;
   border: none;
-  border-radius: var(--border-radius);
-  background: linear-gradient(135deg, var(--primary-teal), var(--secondary-teal));
-  color: #fff;
-  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
 }
 
-.export-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px var(--hover-shadow);
+.filter-container button:hover {
+  background: #1d4ed8;
 }
 
-/* Table Card Style */
+/* ================= TABLE ================= */
 .report-table {
   width: 100%;
   border-collapse: collapse;
-  background: var(--card-bg);
-  border-radius: var(--border-radius);
+  background: white;
+  border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0 4px 15px var(--shadow);
-  transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
-}
-
-.report-table:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px var(--hover-shadow);
-}
-
-.report-table th,
-.report-table td {
-  padding: 14px 12px;
-  text-align: left;
-  font-size: 0.95rem;
-  border-bottom: 1px solid #e5e7eb;
 }
 
 .report-table th {
-  background: #f3f4f6;
-  font-weight: 600;
-  position: sticky;
-  top: 0;
-  z-index: 1;
+  background: #2563eb;
+  color: white;
+  padding: 10px;
+  font-size: 14px;
 }
 
-.report-table tbody tr:hover {
+.report-table td {
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+  font-size: 14px;
+}
+
+.report-table tr:hover {
   background: #f1f5f9;
 }
 
-/* Amount Right Align */
-.right {
-  text-align: right;
-  font-weight: 600;
+/* ================= PAGINATION ================= */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  margin-top: 15px;
 }
 
-/* ----- Type Badges ----- */
-.type-badge {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #fff;
-  text-align: center;
-  box-shadow: 0 2px 6px var(--shadow);
-  transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+.pagination button {
+  padding: 8px 14px;
+  background: #2563eb;
+  color: black;
+  border: none;
+  border-radius: 6px;
 }
 
-.badge-booking {
-  background: linear-gradient(135deg, var(--primary-teal), var(--secondary-teal));
-  text-shadow: 0 1px 2px var(--hover-shadow);
-}
-
-.badge-install {
-  background: linear-gradient(135deg, var(--primary-blue), var(--secondary-blue));
-  text-shadow: 0 1px 2px var(--hover-shadow);
-}
-
-.type-badge:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 10px var(--hover-shadow);
-}
-
-/* ----- Status Badges ----- */
-.status-badge {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #fff;
-  text-align: center;
-  box-shadow: 0 2px 6px var(--shadow);
-  transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
-}
-
-.active-customer {
-  background: linear-gradient(135deg, var(--green), #22c55e);
-}
-
-.cancelled {
-  background: linear-gradient(135deg, var(--red), #ef4444);
-}
-
-.sale-deed {
-  background: linear-gradient(135deg, var(--yellow), #facc15);
-}
-
-.status-badge:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 10px var(--hover-shadow);
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .filter-container {
-    flex-direction: column;
-  }
-
-  .total-box {
-    width: 100%;
-    margin-bottom: 15px;
-  }
-
-  .report-table th,
-  .report-table td {
-    padding: 10px 8px;
-    font-size: 0.85rem;
-  }
+.pagination button:disabled {
+  background: #ccc;
 }

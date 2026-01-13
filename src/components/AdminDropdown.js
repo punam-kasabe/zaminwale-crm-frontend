@@ -20,16 +20,27 @@ const AdminDropdown = ({ adminName, handleLogout }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Logout with confirmation
+  const confirmLogout = () => {
+    const confirmed = window.confirm("Are you sure you want to logout?");
+    if (confirmed) {
+      handleLogout();
+    }
+  };
+
   return (
     <div className="admin-dropdown" ref={dropdownRef}>
+      {/* Toggle */}
       <div className="admin-toggle" onClick={toggleDropdown}>
         <FaUserCircle className="admin-icon" />
         <span className="admin-name">{adminName}</span>
       </div>
+
+      {/* Dropdown Menu */}
       {open && (
         <div className="admin-menu">
           <div className="admin-menu-item">Profile</div>
-          <div className="admin-menu-item" onClick={handleLogout}>
+          <div className="admin-menu-item" onClick={confirmLogout}>
             Logout
           </div>
         </div>

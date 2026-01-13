@@ -2,32 +2,34 @@ import React, { useEffect, useState, useMemo } from "react";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import "../styles/TotalReceived.css";
 
-// BASE URL
 const BASE_URL = "http://192.168.29.50:5001";
 
-// Convert dd.mm.yyyy → Date object
+/* ================= DATE HELPERS ================= */
 const parseDate = (raw) => {
   if (!raw) return null;
   if (typeof raw === "string" && raw.includes(".")) {
     const [dd, mm, yyyy] = raw.split(".");
-    return new Date(parseInt(yyyy), parseInt(mm) - 1, parseInt(dd));
+    const d = new Date(yyyy, mm - 1, dd);
+    d.setHours(12, 0, 0, 0);
+    return d;
   }
   const d = new Date(raw);
-  return isNaN(d) ? null : d;
+  if (isNaN(d)) return null;
+  d.setHours(12, 0, 0, 0);
+  return d;
 };
 
-// Format date dd.mm.yyyy
 const formatDate = (d) => {
   if (!d) return "-";
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const yy = d.getFullYear();
-  return `${dd}.${mm}.${yy}`;
+  return `${String(d.getDate()).padStart(2, "0")}.${String(
+    d.getMonth() + 1
+  ).padStart(2, "0")}.${d.getFullYear()}`;
 };
 
-// Set time to start of day
 const dayStart = (d) => {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
@@ -39,140 +41,219 @@ export default function TotalReceived() {
   const [searchText, setSearchText] = useState("");
   const [selectedVillage, setSelectedVillage] = useState("");
 
-  // Fetch all customers
+  const todayStr = new Date().toISOString().split("T")[0];
+  const [fromDate, setFromDate] = useState(todayStr);
+  const [toDate, setToDate] = useState(todayStr);
+
+  /* ============ PAGINATION ============ */
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 15;
+
+  /* ================= FETCH ================= */
   useEffect(() => {
-    const fetchAll = async () => {
-      try {
-        const res = await axios.get(`${BASE_URL}/api/customers`);
-        setCustomers(res.data || []);
-      } catch (err) {
-        console.log("Fetch Error:", err);
-        alert("Server connection failed!");
-      }
-    };
-    fetchAll();
-    const interval = setInterval(fetchAll, 10000); // Auto refresh every 10 sec
-    return () => clearInterval(interval);
+    axios
+      .get(`${BASE_URL}/api/customers`)
+      .then((res) => setCustomers(res.data || []))
+      .catch(() => alert("Server connection failed"));
   }, []);
 
-  // Unique villages for dropdown
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [fromDate, toDate, searchText, selectedVillage]);
+
+  /* ================= UNIQUE VILLAGES ================= */
   const villages = useMemo(() => {
-    const setVillages = new Set(customers.map(c => c.village).filter(Boolean));
-    return Array.from(setVillages).sort();
+    return [...new Set(customers.map((c) => c.village).filter(Boolean))].sort();
   }, [customers]);
 
-  // GET TODAY’S COLLECTION
-  const todaysRows = useMemo(() => {
+  /* ================= ALL ROWS ================= */
+  const allRows = useMemo(() => {
     let rows = [];
 
     customers.forEach((c) => {
+      if (
+        c.status?.toLowerCase().includes("cancel") ||
+        c.status?.toLowerCase().includes("refund") ||
+        c.status?.toLowerCase().includes("bounce")
+      )
+        return;
+
       const bookingDate = parseDate(c.date);
-      // Booking
-      if (bookingDate && c.bookingAmount) {
-        const amount = Number(c.bookingAmount) || 0;
+      if (bookingDate && Number(c.receivedAmount) > 0) {
         rows.push({
           date: bookingDate,
           customerId: c.customerId,
           name: c.name,
+          location: c.location,
           village: c.village,
           status: c.status,
-          amount,
+          amount: Number(c.receivedAmount),
+          totalAmount: Number(
+            c.totalAmount || c.grandTotal || c.finalAmount || c.plotTotal || 0
+          ),
           type: "Booking",
         });
       }
 
-      // Installments
-      if (Array.isArray(c.installments)) {
-        c.installments.forEach((inst) => {
-          const instDate = parseDate(inst.installmentDate || inst.date || inst.paymentDate);
-          const amt = Number(inst.receivedAmount || inst.installmentAmount || inst.amount || 0);
-          if (instDate && amt > 0) {
-            rows.push({
-              date: instDate,
-              customerId: c.customerId,
-              name: c.name,
-              village: c.village,
-              status: c.status,
-              amount: amt,
-              type: "Installment",
-            });
-          }
-        });
-      }
+      (c.installments || []).forEach((inst) => {
+        const instDate = parseDate(
+          inst.installmentDate || inst.date || inst.paymentDate
+        );
+        const amt = Number(
+          inst.receivedAmount || inst.installmentAmount || inst.amount || 0
+        );
+        if (instDate && amt > 0) {
+          rows.push({
+            date: instDate,
+            customerId: c.customerId,
+            name: c.name,
+            location: c.location,
+            village: c.village,
+            status: c.status,
+            amount: amt,
+            totalAmount: Number(
+              c.totalAmount || c.grandTotal || c.finalAmount || c.plotTotal || 0
+            ),
+            type: "Installment",
+          });
+        }
+      });
     });
 
     return rows;
   }, [customers]);
 
-  const todaysCollection = todaysRows
-    .filter((r) => dayStart(r.date).getTime() === dayStart(new Date()).getTime())
-    .reduce((sum, r) => sum + r.amount, 0);
-
-  // Helper for status badge class
-  const getStatusClass = (status) => {
-    const s = status?.toLowerCase();
-    if (s?.includes("active")) return "active-customer";
-    if (s?.includes("cancel")) return "cancelled";
-    return "sale-deed";
-  };
-
-  // Filter rows based on search and village
+  /* ================= FILTER ================= */
   const filteredRows = useMemo(() => {
-    return todaysRows
-      .filter(r => dayStart(r.date).getTime() === dayStart(new Date()).getTime())
-      .filter(r =>
-        r.customerId.toLowerCase().includes(searchText.toLowerCase()) ||
-        r.name.toLowerCase().includes(searchText.toLowerCase())
+    const from = dayStart(new Date(fromDate));
+    const to = dayStart(new Date(toDate));
+
+    return allRows
+      .filter((r) => dayStart(r.date) >= from && dayStart(r.date) <= to)
+      .filter(
+        (r) =>
+          r.customerId.toLowerCase().includes(searchText.toLowerCase()) ||
+          r.name.toLowerCase().includes(searchText.toLowerCase())
       )
-      .filter(r => !selectedVillage || r.village === selectedVillage)
+      .filter((r) => !selectedVillage || r.village === selectedVillage)
       .sort((a, b) => b.date - a.date);
-  }, [todaysRows, searchText, selectedVillage]);
+  }, [allRows, fromDate, toDate, searchText, selectedVillage]);
 
-  // Excel Export
-  const exportToExcel = () => {
-    const wsData = filteredRows.map(r => ({
-      Date: formatDate(r.date),
-      "Customer ID": r.customerId,
-      Name: r.name,
-      Village: r.village,
-      Status: r.status,
-      Type: r.type,
-      Amount: r.amount
-    }));
+  /* ================= TOTALS ================= */
+  const totalAmount = useMemo(
+    () => filteredRows.reduce((s, r) => s + r.amount, 0),
+    [filteredRows]
+  );
 
-    const ws = XLSX.utils.json_to_sheet(wsData);
+  const bookingCount = filteredRows.filter((r) => r.type === "Booking").length;
+  const installmentCount = filteredRows.filter(
+    (r) => r.type === "Installment"
+  ).length;
+
+  /* ======= TOTAL SALE BOOKED (unique customer) ======= */
+  const totalSaleBooked = useMemo(() => {
+    const map = new Map();
+    filteredRows.forEach((r) => {
+      if (!map.has(r.customerId)) {
+        map.set(r.customerId, r.totalAmount);
+      }
+    });
+    return Array.from(map.values()).reduce((s, v) => s + v, 0);
+  }, [filteredRows]);
+
+  /* ================= PAGINATION ================= */
+  const totalPages = Math.ceil(filteredRows.length / rowsPerPage);
+  const paginatedRows = filteredRows.slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
+  );
+
+  /* ================= EXPORT ================= */
+  const exportExcel = () => {
+    const ws = XLSX.utils.json_to_sheet(
+      filteredRows.map((r) => ({
+        Date: formatDate(r.date),
+        "Customer ID": r.customerId,
+        Name: r.name,
+        Location: r.location,
+        Village: r.village,
+        "Total Amount": r.totalAmount,
+        Received: r.amount,
+        Type: r.type,
+      }))
+    );
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Today's Collection");
-    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    saveAs(new Blob([wbout], { type: "application/octet-stream" }), "TodaysCollection.xlsx");
+    XLSX.utils.book_append_sheet(wb, ws, "Collection");
+    XLSX.writeFile(wb, "Collection_Report.xlsx");
   };
 
+  const exportPDF = () => {
+    const doc = new jsPDF();
+    doc.text("Collection Report", 14, 15);
+    autoTable(doc, {
+      startY: 20,
+      head: [["Date", "Customer", "Name", "Village", "Total", "Received", "Type"]],
+      body: filteredRows.map((r) => [
+        formatDate(r.date),
+        r.customerId,
+        r.name,
+        r.village,
+        r.totalAmount,
+        r.amount,
+        r.type,
+      ]),
+    });
+    doc.save("Collection_Report.pdf");
+  };
+
+  /* ================= UI ================= */
   return (
     <div className="total-received-container">
-      <h2>Today's Collection</h2>
+      <h2>Collection Report</h2>
 
-      <div className="total-box">
-        <h3>Total Collected Today</h3>
-        <p className="total-amount">₹{todaysCollection.toLocaleString()}</p>
+      <div className="summary-row">
+        <div className="total-box">
+          <h3>Total Collection</h3>
+          <p>₹{totalAmount.toLocaleString()}</p>
+        </div>
+
+        <div className="total-box sale">
+          <h3>Total Sale Booked</h3>
+          <p>₹{totalSaleBooked.toLocaleString()}</p>
+        </div>
+
+        <div className="total-box booking">
+          <h3>Bookings</h3>
+          <p>{bookingCount}</p>
+        </div>
+
+        <div className="total-box installment">
+          <h3>Installments</h3>
+          <p>{installmentCount}</p>
+        </div>
       </div>
 
-      {/* Search & Filter */}
       <div className="filter-container">
+        <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+        <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
         <input
           type="text"
-          placeholder="Search by Customer ID or Name"
+          placeholder="Search Customer"
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
         />
         <select value={selectedVillage} onChange={(e) => setSelectedVillage(e.target.value)}>
           <option value="">All Villages</option>
-          {villages.map((v, i) => (
-            <option key={i} value={v}>{v}</option>
+          {villages.map((v) => (
+            <option key={v}>{v}</option>
           ))}
         </select>
-        <button onClick={exportToExcel} className="export-btn">Export Excel</button>
+
+        <button onClick={exportExcel}>Excel</button>
+        <button onClick={exportPDF}>PDF</button>
       </div>
 
+      {/* ================= TABLE ================= */}
       <table className="report-table">
         <thead>
           <tr>
@@ -180,39 +261,37 @@ export default function TotalReceived() {
             <th>Customer ID</th>
             <th>Name</th>
             <th>Village</th>
-            <th>Status</th>
+            <th>Total ₹</th>
+            <th>Received ₹</th>
             <th>Type</th>
-            <th>Amount (₹)</th>
           </tr>
         </thead>
         <tbody>
-          {filteredRows.length ? (
-            filteredRows.map((r, i) => (
+          {paginatedRows.length ? (
+            paginatedRows.map((r, i) => (
               <tr key={i}>
                 <td>{formatDate(r.date)}</td>
                 <td>{r.customerId}</td>
                 <td>{r.name}</td>
                 <td>{r.village}</td>
-                <td>
-                  <span className={`status-badge ${getStatusClass(r.status)}`}>
-                    {r.status.toUpperCase()}
-                  </span>
-                </td>
-                <td>
-                  <span className={`type-badge ${r.type === "Booking" ? "badge-booking" : "badge-install"}`}>
-                    {r.type}
-                  </span>
-                </td>
-                <td className="right">₹{r.amount.toLocaleString()}</td>
+                <td>₹{r.totalAmount.toLocaleString()}</td>
+                <td>₹{r.amount.toLocaleString()}</td>
+                <td>{r.type}</td>
               </tr>
             ))
           ) : (
             <tr>
-              <td colSpan="7" align="center">No Collection Today</td>
+              <td colSpan="7">No Data Found</td>
             </tr>
           )}
         </tbody>
       </table>
+
+      <div className="pagination">
+        <button disabled={currentPage === 1} onClick={() => setCurrentPage(currentPage - 1)}>⬅ Prev</button>
+        <span>Page {currentPage} / {totalPages || 1}</span>
+        <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(currentPage + 1)}>Next ➡</button>
+      </div>
     </div>
   );
 }

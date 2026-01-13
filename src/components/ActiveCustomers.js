@@ -1,20 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { Navigate } from "react-router-dom";
 import "../styles/ActiveCustomers.css";
 
-// ACTIVE CHECK FUNCTION
-const isActiveCustomer = (status = "") => {
-  const s = status.toLowerCase();
-  return (
-    s === "active customer" ||
-    s.includes("active customer") ||
-    s === "active"
-  );
-};
-
-// 🔥 YOUR LAN IP (WORKS ON ALL PCs IN SAME WIFI)
 const BASE_URL = "http://192.168.29.50:5001";
 
 const STATUS_VALUES = [
@@ -23,26 +12,36 @@ const STATUS_VALUES = [
   "Cheque Bounce",
   "REFUND DONE",
   "BOOKING CANCELLED",
+  "For Feit",
 ];
+
+const normalizeStatus = (status = "") =>
+  (status || "").toLowerCase().trim().replace(/\s+/g, "");
+
+const isActiveCustomer = (status = "") => normalizeStatus(status) === "activecustomer";
+const isSaledeedCustomer = (status = "") => normalizeStatus(status) === "saledeeddone";
+const isForFeitCustomer = (status = "") => normalizeStatus(status) === "forfeit";
 
 export default function ActiveCustomers() {
   const [allCustomers, setAllCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // Filters
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedVillage, setSelectedVillage] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [selectedStatuses, setSelectedStatuses] = useState([]);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-
-  // Pagination / Sorting
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(25);
-  const [sortConfig, setSortConfig] = useState({
-    key: "date",
-    direction: "desc",
-  });
+
+  const [sortConfig, setSortConfig] = useState({ key: "", direction: "asc" });
+  const handleSort = (key) => {
+    setSortConfig((prev) => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
+      }
+      return { key, direction: "asc" };
+    });
+  };
 
   const user = useMemo(() => {
     const u = localStorage.getItem("user");
@@ -51,14 +50,13 @@ export default function ActiveCustomers() {
 
   useEffect(() => {
     if (!user) return;
-    fetchActiveCustomers();
+    fetchCustomers();
   }, [user]);
 
-  // 🔥 UPDATED → LAN compatible
-  const fetchActiveCustomers = async () => {
+  const fetchCustomers = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${BASE_URL}/api/customers/active`);
+      const res = await axios.get(`${BASE_URL}/api/customers`);
       setAllCustomers(res.data);
     } catch (err) {
       console.error("Error fetching customers:", err);
@@ -71,14 +69,22 @@ export default function ActiveCustomers() {
   if (!user) return <Navigate to="/login" replace />;
 
   const villageList = useMemo(() => {
-    const setV = new Set();
-    allCustomers.forEach((c) => {
-      if (c.village?.trim() !== "") setV.add(c.village);
-    });
-    return [...setV].sort();
+    return [...new Set(allCustomers.map((c) => c.village).filter(Boolean))].sort();
   }, [allCustomers]);
 
-  // ------------------ FILTER LIST ------------------
+  const statusDropdownRef = useRef(null);
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target)) {
+        setStatusDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const filtered = useMemo(() => {
     const s = searchTerm.toLowerCase().trim();
     const from = fromDate ? new Date(fromDate) : null;
@@ -86,153 +92,152 @@ export default function ActiveCustomers() {
     if (from) from.setHours(0, 0, 0, 0);
     if (to) to.setHours(23, 59, 59, 999);
 
-    return allCustomers
-      .filter((c) => {
-        const id = String(c.customerId || "").toLowerCase();
-        const name = String(c.name || "").toLowerCase();
-        const village = String(c.village || "").toLowerCase();
-        const location = String(c.location || "").toLowerCase();
+    return allCustomers.filter((c) => {
+      const entryDate = c.date ? new Date(c.date) : null;
 
-        const entryDate = c.date ? new Date(c.date) : null;
-        if (entryDate) entryDate.setHours(0, 0, 0, 0);
+      if (selectedStatuses.length > 0) {
+        if (!selectedStatuses.includes(c.status)) return false;
+      }
 
-        return (
-          (!s ||
-            id.includes(s) ||
-            name.includes(s) ||
-            village.includes(s) ||
-            location.includes(s)) &&
-          (!selectedVillage || c.village === selectedVillage) &&
-          (!statusFilter || c.status === statusFilter) &&
-          (!from || (entryDate && entryDate >= from)) &&
-          (!to || (entryDate && entryDate <= to))
-        );
-      })
-      .sort((a, b) => {
-        if (!sortConfig.key) return 0;
-        let A = a[sortConfig.key];
-        let B = b[sortConfig.key];
+      const matchesSearch =
+        !s ||
+        String(c.customerId || "").toLowerCase().includes(s) ||
+        String(c.name || "").toLowerCase().includes(s) ||
+        String(c.village || "").toLowerCase().includes(s);
 
-        if (sortConfig.key === "date") {
-          A = A ? new Date(A) : new Date(0);
-          B = B ? new Date(B) : new Date(0);
-        }
+      const matchesVillage = !selectedVillage || c.village === selectedVillage;
 
-        if (A < B) return sortConfig.direction === "asc" ? -1 : 1;
-        if (A > B) return sortConfig.direction === "asc" ? 1 : -1;
-        return 0;
-      });
-  }, [allCustomers, searchTerm, selectedVillage, statusFilter, fromDate, toDate, sortConfig]);
+      const matchesDate =
+        (!from || (entryDate && entryDate >= from)) &&
+        (!to || (entryDate && entryDate <= to));
 
-  // ------------------ SUMMARY ------------------
+      return matchesSearch && matchesVillage && matchesDate;
+    });
+  }, [allCustomers, searchTerm, selectedVillage, selectedStatuses, fromDate, toDate]);
+
+  const sortedFiltered = useMemo(() => {
+    const data = [...filtered];
+    if (!sortConfig.key) return data;
+
+    data.sort((a, b) => {
+      let aVal, bVal;
+      if (sortConfig.key === "date") {
+        aVal = a.date ? new Date(a.date) : new Date(0);
+        bVal = b.date ? new Date(b.date) : new Date(0);
+      } else {
+        aVal = String(a[sortConfig.key] || "").toLowerCase();
+        bVal = String(b[sortConfig.key] || "").toLowerCase();
+      }
+
+      if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    return data;
+  }, [filtered, sortConfig]);
+
+  // ================= UPDATED SUMMARY =================
   const summary = useMemo(() => {
-    const filteredActive = filtered.filter((c) => isActiveCustomer(c.status));
-
-    const totalReceived = filteredActive.reduce(
-      (sum, c) => sum + Number(c.receivedAmount || 0),
-      0
-    );
-    const totalBalance = filteredActive.reduce(
-      (sum, c) => sum + Number(c.balanceAmount || 0),
-      0
+    // Remove duplicates by customerId
+    const uniqueCustomers = Array.from(
+      new Map(sortedFiltered.map((c) => [c.customerId, c])).values()
     );
 
     return {
-      totalCustomers: filteredActive.length,
-      totalReceived,
-      totalBalance,
-      totalBooking: filteredActive.reduce(
-        (sum, c) => sum + Number(c.totalAmount || 0),
-        0
-      ),
+      totalActive: uniqueCustomers.filter((c) => isActiveCustomer(c.status)).length,
+      totalSaledeed: uniqueCustomers.filter((c) => isSaledeedCustomer(c.status)).length,
+      totalForFeit: uniqueCustomers.filter((c) => isForFeitCustomer(c.status)).length,
+      totalReceived: uniqueCustomers.reduce((s, c) => s + Number(c.receivedAmount || 0), 0),
+      totalBalance: uniqueCustomers.reduce((s, c) => s + Number(c.balanceAmount || 0), 0),
+      totalRevenue: uniqueCustomers.reduce((s, c) => s + Number(c.totalAmount || 0), 0),
     };
-  }, [filtered]);
+  }, [sortedFiltered]);
 
-  // ------------------ PAGINATION ------------------
-  const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
+  const totalPages = Math.max(1, Math.ceil(sortedFiltered.length / rowsPerPage));
   const currentPage = Math.min(page, totalPages);
-  const paginated = filtered.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
-  );
 
-  const handleSort = (key) => {
-    setSortConfig((prev) => ({
-      key,
-      direction:
-        prev.key === key && prev.direction === "asc" ? "desc" : "asc",
-    }));
+  const paginated = useMemo(() => {
+    const start = (currentPage - 1) * rowsPerPage;
+    return sortedFiltered.slice(start, start + rowsPerPage);
+  }, [sortedFiltered, currentPage, rowsPerPage]);
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    let start = Math.max(1, currentPage - 2);
+    let end = Math.min(totalPages, start + maxVisible - 1);
+    if (end - start < maxVisible - 1) start = Math.max(1, end - maxVisible + 1);
+    for (let i = start; i <= end; i++) pages.push(i);
+    return pages;
   };
 
   const resetFilters = () => {
     setSearchTerm("");
     setSelectedVillage("");
-    setStatusFilter("");
+    setSelectedStatuses([]);
     setFromDate("");
     setToDate("");
-    setSortConfig({ key: "date", direction: "desc" });
+    setSortConfig({ key: "", direction: "asc" });
     setPage(1);
   };
 
   const exportToExcel = () => {
-    const data = filtered.map((c, idx) => ({
-      "Sr No": idx + 1,
-      Date: c.date ? new Date(c.date).toLocaleDateString("en-GB") : "",
-      "Customer ID": c.customerId || "",
-      Name: c.name || "",
-      Village: c.village || "",
-      Status: c.status || "",
-      Booking: c.totalAmount || 0,
-      Received: c.receivedAmount || 0,
-      Balance: c.balanceAmount || 0,
+    const data = sortedFiltered.map((c, i) => ({
+      "Sr No": i + 1,
+      Date: c.date ? new Date(c.date) : "",
+      "Customer ID": c.customerId,
+      Name: c.name,
+      Location: c.location || "",
+      Village: c.village,
+      "Total Amount": Number(c.totalAmount || 0),
+      Booking: Number(c.bookingAmount || 0),
+      Received: Number(c.receivedAmount || 0),
+      Balance: Number(c.balanceAmount || 0),
+      Status: c.status,
     }));
 
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Active Customers");
-    XLSX.writeFile(wb, "Active_Customers.xlsx");
+    XLSX.utils.book_append_sheet(wb, ws, "Customers");
+    XLSX.writeFile(wb, "Customers.xlsx");
   };
 
-  const statusClass = (status = "") =>
-    status.toLowerCase().replace(/\s+/g, "-");
+  const statusClass = (status = "") => normalizeStatus(status);
 
   return (
     <div className="ac-page">
-      <h2 className="ac-title">Active Customers</h2>
+      <h2 className="ac-title">All Customers</h2>
 
-      {/* FILTERS */}
+      {/* ================= FILTERS ================= */}
       <div className="ac-filters">
         <input
           className="ac-search"
-          placeholder="Search ID / Name / Village / Location"
+          placeholder="Search ID / Name / Village"
           value={searchTerm}
           onChange={(e) => {
             setSearchTerm(e.target.value);
             setPage(1);
           }}
         />
-
-        <div className="ac-daterange">
-          <input
-            type="date"
-            className="ac-date"
-            value={fromDate}
-            onChange={(e) => {
-              setFromDate(e.target.value);
-              setPage(1);
-            }}
-          />
-          <input
-            type="date"
-            className="ac-date"
-            value={toDate}
-            onChange={(e) => {
-              setToDate(e.target.value);
-              setPage(1);
-            }}
-          />
-        </div>
-
+        <input
+          type="date"
+          className="ac-date"
+          value={fromDate}
+          onChange={(e) => {
+            setFromDate(e.target.value);
+            setPage(1);
+          }}
+        />
+        <input
+          type="date"
+          className="ac-date"
+          value={toDate}
+          onChange={(e) => {
+            setToDate(e.target.value);
+            setPage(1);
+          }}
+        />
         <select
           className="ac-dropdown"
           value={selectedVillage}
@@ -243,27 +248,43 @@ export default function ActiveCustomers() {
         >
           <option value="">Select Village</option>
           {villageList.map((v) => (
-            <option key={v} value={v}>
-              {v}
-            </option>
+            <option key={v}>{v}</option>
           ))}
         </select>
 
-        <select
-          className="ac-dropdown"
-          value={statusFilter}
-          onChange={(e) => {
-            setStatusFilter(e.target.value);
-            setPage(1);
-          }}
-        >
-          <option value="">All Status</option>
-          {STATUS_VALUES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
+        <div className="ac-multiselect-dropdown" ref={statusDropdownRef}>
+          <div
+            className="ac-multiselect-header"
+            onClick={() => setStatusDropdownOpen(!statusDropdownOpen)}
+          >
+            {selectedStatuses.length > 0
+              ? `${selectedStatuses.length} selected`
+              : "Select Status"}
+            <span className="arrow">{statusDropdownOpen ? "▲" : "▼"}</span>
+          </div>
+          {statusDropdownOpen && (
+            <div className="ac-multiselect-options">
+              {STATUS_VALUES.map((s) => (
+                <label key={s} className="ac-checkbox-label">
+                  <input
+                    type="checkbox"
+                    value={s}
+                    checked={selectedStatuses.includes(s)}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setSelectedStatuses((prev) => {
+                        if (checked) return [...prev, s];
+                        return prev.filter((status) => status !== s);
+                      });
+                      setPage(1);
+                    }}
+                  />
+                  {s}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
 
         <button className="ac-btn export" onClick={exportToExcel}>
           Export Excel
@@ -273,133 +294,104 @@ export default function ActiveCustomers() {
         </button>
       </div>
 
-      {/* SUMMARY */}
-      <div className="ac-summary">
+      {/* ================= SUMMARY ================= */}
+      <div className="ac-summary six">
         <div className="card">
-          <div className="card-title">Active Customers</div>
-          <div className="card-value">
-            {summary.totalCustomers.toLocaleString()}
-          </div>
+          <div>BOOKING COUNT</div>
+          <b>{summary.totalActive}</b>
         </div>
-        <div className="card">
-          <div className="card-title">Total Received</div>
-          <div className="card-value">
-            ₹{summary.totalReceived.toLocaleString()}
-          </div>
+        <div className="card saledeed">
+          <div>SALEDEED DONE</div>
+          <b>{summary.totalSaledeed}</b>
         </div>
-        <div className="card">
-          <div className="card-title">Total Balance</div>
-          <div className="card-value">
-            ₹{summary.totalBalance.toLocaleString()}
-          </div>
+        <div className="card forfeit">
+          <div>FOR FEIT</div>
+          <b>{summary.totalForFeit}</b>
+        </div>
+        <div className="card received">
+          <div>TOTAL RECEIVED</div>
+          <b>₹{summary.totalReceived.toLocaleString()}</b>
+        </div>
+        <div className="card balance">
+          <div>TOTAL BALANCE</div>
+          <b>₹{summary.totalBalance.toLocaleString()}</b>
+        </div>
+        <div className="card revenue">
+          <div>SALE BOOKED</div>
+          <b>₹{summary.totalRevenue.toLocaleString()}</b>
         </div>
       </div>
 
-      {/* TABLE */}
+      {/* ================= TABLE ================= */}
       <div className="ac-table-wrap">
         <table className="ac-table">
           <thead>
             <tr>
-              <th onClick={() => handleSort("date")}>Date</th>
-              <th onClick={() => handleSort("customerId")}>
-                Customer ID
+              <th>Sr No</th>
+              <th onClick={() => handleSort("date")} className="sortable">
+                Date {sortConfig.key === "date" ? (sortConfig.direction === "asc" ? "▲" : "▼") : ""}
               </th>
-              <th onClick={() => handleSort("name")}>Name</th>
+              <th onClick={() => handleSort("customerId")} className="sortable">
+                Customer ID {sortConfig.key === "customerId" ? (sortConfig.direction === "asc" ? "▲" : "▼") : ""}
+              </th>
+              <th>Name</th>
+              <th>Location</th>
               <th>Village</th>
+              <th>Total Amount</th>
+              <th>Booking</th>
+              <th>Received</th>
+              <th>Balance</th>
               <th>Status</th>
-              <th onClick={() => handleSort("totalAmount")}>Booking</th>
-              <th onClick={() => handleSort("receivedAmount")}>
-                Received
-              </th>
-              <th onClick={() => handleSort("balanceAmount")}>
-                Balance
-              </th>
             </tr>
           </thead>
-
           <tbody>
-            {paginated.map((c) => (
-              <tr key={c._id || c.customerId}>
-                <td>
-                  {c.date
-                    ? new Date(c.date).toLocaleDateString("en-GB")
-                    : "-"}
-                </td>
-                <td>{c.customerId || "-"}</td>
-                <td>{c.name || "-"}</td>
-                <td>{c.village || "-"}</td>
-                <td>
-                  <span className={`status-badge ${statusClass(c.status)}`}>
-                    {c.status}
-                  </span>
-                </td>
+            {paginated.map((c, index) => (
+              <tr key={c._id}>
+                <td>{(currentPage - 1) * rowsPerPage + index + 1}</td>
+                <td>{c.date ? new Date(c.date).toLocaleDateString("en-GB") : "-"}</td>
+                <td>{c.customerId}</td>
+                <td>{c.name}</td>
+                <td>{c.location || "-"}</td>
+                <td>{c.village}</td>
                 <td>₹{Number(c.totalAmount || 0).toLocaleString()}</td>
-                <td style={{ color: "green" }}>
-                  ₹{Number(c.receivedAmount || 0).toLocaleString()}
-                </td>
-                <td style={{ color: "red" }}>
-                  ₹{Number(c.balanceAmount || 0).toLocaleString()}
+                <td>₹{Number(c.bookingAmount || 0).toLocaleString()}</td>
+                <td className="green">₹{Number(c.receivedAmount || 0).toLocaleString()}</td>
+                <td className="red">₹{Number(c.balanceAmount || 0).toLocaleString()}</td>
+                <td>
+                  <span className={`status-badge ${statusClass(c.status)}`}>{c.status}</span>
                 </td>
               </tr>
             ))}
-
-            {paginated.length === 0 && (
-              <tr>
-                <td colSpan="8" style={{ textAlign: "center" }}>
-                  No records
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
-      </div>
 
-      {/* PAGINATION */}
-      <div className="ac-pagination">
-        <div className="rows-per">
-          Rows:
-          <select
-            value={rowsPerPage}
-            onChange={(e) => {
-              setRowsPerPage(Number(e.target.value));
-              setPage(1);
-            }}
-          >
-            <option value={10}>10</option>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
-            <option value={100}>100</option>
-          </select>
-        </div>
-
-        <div className="page-controls">
-          <button onClick={() => setPage(1)} disabled={page === 1}>
-            ⏮
-          </button>
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-          >
-            ◀ Prev
-          </button>
-
-          <span>
-            Page {currentPage} / {totalPages}
-          </span>
-
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-          >
-            Next ▶
-          </button>
-
-          <button
-            onClick={() => setPage(totalPages)}
-            disabled={page === totalPages}
-          >
-            ⏭
-          </button>
+        <div className="ac-pagination">
+          <div>
+            Rows:
+            <select
+              value={rowsPerPage}
+              onChange={(e) => {
+                setRowsPerPage(+e.target.value);
+                setPage(1);
+              }}
+            >
+              {[10, 25, 50, 100].map((n) => (
+                <option key={n}>{n}</option>
+              ))}
+            </select>
+          </div>
+          <div className="page-controls">
+            <button disabled={currentPage === 1} onClick={() => setPage(1)}>⏮</button>
+            <button disabled={currentPage === 1} onClick={() => setPage((p) => p - 1)}>Prev</button>
+            {getPageNumbers().map((n) => (
+              <button key={n} className={n === currentPage ? "active" : ""} onClick={() => setPage(n)}>{n}</button>
+            ))}
+            <button disabled={currentPage === totalPages} onClick={() => setPage((p) => p + 1)}>Next</button>
+            <button disabled={currentPage === totalPages} onClick={() => setPage(totalPages)}>⏭</button>
+          </div>
+          <div className="page-info">
+            Page {currentPage} / {totalPages} | Total {sortedFiltered.length}
+          </div>
         </div>
       </div>
     </div>

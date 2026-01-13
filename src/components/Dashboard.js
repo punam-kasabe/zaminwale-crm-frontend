@@ -1,17 +1,16 @@
 import React, { useContext, useMemo, useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { CustomerContext } from "../context/CustomerContext.js";
 import "../styles/Dashboard.css";
-import { Link } from "react-router-dom";
 import StatusPieChart from "../components/StatusPieChart.js";
 import ProgressCircle from "../components/ProgressCircle.js";
-import AdminDropdown from "../components/AdminDropdown.js";
+
 import ThemeToggle from "../components/ThemeToggle.js";
 import NotificationBell from "../components/NotificationBell.js";
 import StatusMonthGraphSpark from "../components/StatusMonthGraphSpark.js";
 
 // ---------------- HELPERS ----------------
-const normalize = (v) =>
-  v?.toString().toLowerCase().replace(/\s+/g, "").trim();
+const normalize = (v) => v?.toString().toLowerCase().replace(/\s+/g, "").trim();
 
 export const isActiveCustomer = (status) => {
   const s = normalize(status);
@@ -24,6 +23,10 @@ const parseDate = (raw) => {
     const [dd, mm, yyyy] = raw.split(".");
     return new Date(yyyy, mm - 1, dd);
   }
+  if (typeof raw === "string" && raw.includes("/")) {
+    const [dd, mm, yyyy] = raw.split("/");
+    return new Date(yyyy, mm - 1, dd);
+  }
   const d = new Date(raw);
   return isNaN(d) ? null : d;
 };
@@ -33,13 +36,21 @@ const dayStart = (d) => {
   x.setHours(0, 0, 0, 0);
   return x;
 };
-// -----------------------------------------
 
-const Dashboard = ({ handleLogout }) => {
+// ---------------- DASHBOARD ----------------
+const Dashboard = () => {
   const { customers } = useContext(CustomerContext);
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedMonth] = useState(new Date());
 
-  // 🔍 SEARCH FILTER
+  // ---------------- LOGOUT ----------------
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate("/login", { replace: true });
+  };
+
+  // ---------------- SEARCH FILTER ----------------
   const filteredCustomers = useMemo(() => {
     if (!searchTerm) return customers;
     const term = searchTerm.toLowerCase();
@@ -51,95 +62,101 @@ const Dashboard = ({ handleLogout }) => {
     );
   }, [customers, searchTerm]);
 
-  // ✅ ACTIVE CUSTOMERS COUNT
+  // ---------------- VALID CUSTOMERS (EXCLUDE CANCELLED) ----------------
+  const validCustomers = useMemo(() => {
+    return filteredCustomers.filter(
+      (c) => !normalize(c.status).includes("cancel")
+    );
+  }, [filteredCustomers]);
+
+  // ---------------- ACTIVE CUSTOMERS ----------------
   const activeCustomers = useMemo(
-    () => filteredCustomers.filter((c) => isActiveCustomer(c.status)).length,
-    [filteredCustomers]
+    () => validCustomers.filter((c) => isActiveCustomer(c.status)).length,
+    [validCustomers]
   );
 
-  // ✅ TOTAL INSTALLMENTS (ALL TIME)
+  // ---------------- TOTAL INSTALLMENTS ----------------
   const totalInstallments = useMemo(() => {
-    return filteredCustomers.reduce((sum, c) => {
+    return validCustomers.reduce((sum, c) => {
       return (
         sum +
         (c.installments?.reduce(
           (i, r) =>
-            i + (r.receivedAmount || r.installmentAmount || r.amount || 0),
+            i +
+            (Number(r.receivedAmount) ||
+              Number(r.installmentAmount) ||
+              Number(r.amount) ||
+              0),
           0
         ) || 0)
       );
     }, 0);
-  }, [filteredCustomers]);
+  }, [validCustomers]);
 
-  // 🔥 TODAY’S COLLECTION (FIXED – SAME AS TotalReceived PAGE)
+  // ---------------- TODAY'S COLLECTION ----------------
   const todaysCollection = useMemo(() => {
     const today = dayStart(new Date()).getTime();
     let total = 0;
 
-    filteredCustomers.forEach((c) => {
-      // ✅ Booking (only if today)
+    validCustomers.forEach((c) => {
       const bookingDate = parseDate(c.date);
-      if (
-        bookingDate &&
-        dayStart(bookingDate).getTime() === today &&
-        c.bookingAmount
-      ) {
-        total += Number(c.bookingAmount) || 0;
+      if (bookingDate && dayStart(bookingDate).getTime() === today) {
+        total += Number(c.bookingAmount || 0);
       }
 
-      // ✅ Installments (only received today)
-      if (Array.isArray(c.installments)) {
-        c.installments.forEach((inst) => {
-          const instDate = parseDate(
-            inst.installmentDate || inst.date || inst.paymentDate
+      c.installments?.forEach((inst) => {
+        const instDate = parseDate(
+          inst.installmentDate || inst.paymentDate || inst.date
+        );
+        if (instDate && dayStart(instDate).getTime() === today) {
+          total += Number(
+            inst.receivedAmount || inst.installmentAmount || inst.amount || 0
           );
-          if (instDate && dayStart(instDate).getTime() === today) {
-            total +=
-              Number(
-                inst.receivedAmount ||
-                  inst.installmentAmount ||
-                  inst.amount ||
-                  0
-              ) || 0;
-          }
-        });
-      }
+        }
+      });
     });
 
     return total;
-  }, [filteredCustomers]);
+  }, [validCustomers]);
 
-  // ✅ TOTAL COLLECTION (ALL TIME)
-  const totalCollection = useMemo(() => {
-    return filteredCustomers.reduce((sum, c) => {
-      let total = sum;
-      if (c.bookingAmount) total += Number(c.bookingAmount) || 0;
-      if (Array.isArray(c.installments)) {
-        total += c.installments.reduce(
-          (i, r) =>
-            i + (r.receivedAmount || r.installmentAmount || r.amount || 0),
-          0
-        );
+  // ---------------- MONTHLY COLLECTION ----------------
+  const monthCollection = useMemo(() => {
+    const month = selectedMonth.getMonth();
+    const year = selectedMonth.getFullYear();
+    let total = 0;
+
+    validCustomers.forEach((c) => {
+      const bookingDate = parseDate(c.date);
+      if (
+        bookingDate &&
+        bookingDate.getMonth() === month &&
+        bookingDate.getFullYear() === year
+      ) {
+        total += Number(c.bookingAmount || 0);
       }
-      return total;
-    }, 0);
-  }, [filteredCustomers]);
 
-  // ✅ UNIQUE VILLAGES
-  const totalVillages = useMemo(() => {
-    const villages = filteredCustomers
-      .map((c) => c.village?.trim())
-      .filter(Boolean);
-    return new Set(villages).size;
-  }, [filteredCustomers]);
+      c.installments?.forEach((inst) => {
+        const instDate = parseDate(inst.installmentDate || inst.date || inst.paymentDate);
+        if (instDate && instDate.getMonth() === month && instDate.getFullYear() === year) {
+          total += Number(inst.receivedAmount || inst.amount || inst.installmentAmount || 0);
+        }
+      });
+    });
 
-  // ✅ NEXT DUE PAYMENTS
+    return total;
+  }, [validCustomers, selectedMonth]);
+
+  // ---------------- NEXT DUE PAYMENTS ----------------
   const nextDuePayments = useMemo(() => {
-    return filteredCustomers
+    const today = dayStart(new Date()).getTime();
+
+    return validCustomers
       .map((c) => {
-        const nextDue = c.installments?.find(
-          (inst) => inst.date && new Date(inst.date) > new Date()
-        );
+        const nextDue = c.installments?.find((inst) => {
+          const d = parseDate(inst.date);
+          return d && dayStart(d).getTime() > today;
+        });
+
         return nextDue
           ? {
               customerId: c.customerId || "-",
@@ -150,10 +167,14 @@ const Dashboard = ({ handleLogout }) => {
           : null;
       })
       .filter(Boolean)
-      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .sort(
+        (a, b) =>
+          dayStart(parseDate(a.date)).getTime() - dayStart(parseDate(b.date)).getTime()
+      )
       .slice(0, 10);
-  }, [filteredCustomers]);
+  }, [validCustomers]);
 
+  // ---------------- JSX ----------------
   return (
     <div className="dashboard-container">
       {/* HEADER */}
@@ -169,96 +190,143 @@ const Dashboard = ({ handleLogout }) => {
             />
           </div>
         </div>
-        <div className="header-right">
-          <NotificationBell />
-          <ThemeToggle />
-          <AdminDropdown adminName="Admin" handleLogout={handleLogout} />
-        </div>
-      </div>
 
-      {/* DASHBOARD CARDS */}
-      <div className="dashboard-cards">
-        <Link to="/total-received" style={{ textDecoration: "none" }}>
-          <div className="dashboard-card card-blue">
-            <ProgressCircle value={todaysCollection} max={todaysCollection || 1} showPercentage={false} />
-            <p>Today's Collection</p>
-            <h3>₹{todaysCollection.toLocaleString()}</h3>
-          </div>
-        </Link>
-
-        <Link to="/installment-collection" style={{ textDecoration: "none" }}>
-          <div className="dashboard-card card-green">
-            <ProgressCircle value={totalInstallments} max={totalInstallments || 1} />
-            <p>Installment Collection(Under Maintanance)</p>
-            <h3>₹{totalInstallments.toLocaleString()}</h3>
-          </div>
-        </Link>
-
-        <Link to="/total-collection" style={{ textDecoration: "none" }}>
-          <div className="dashboard-card card-red">
-            <ProgressCircle value={totalCollection} max={totalCollection || 1} />
-            <p>Total Collection(Under Maintanance)</p>
-            <h3>₹{totalCollection.toLocaleString()}</h3>
-          </div>
-        </Link>
-
-        <Link to="/active-customers" style={{ textDecoration: "none" }}>
-          <div className="dashboard-card card-orange">
-            <ProgressCircle
-              value={activeCustomers}
-              max={filteredCustomers.length || 1}
-              showPercentage={false}
-            />
-            <p>Active Customers</p>
-          </div>
-        </Link>
-
-        <Link to="/project-location" style={{ textDecoration: "none" }}>
-          <div className="dashboard-card card-purple">
-            <ProgressCircle value={4} max={4} />
-            <p>Projects</p>
-            <h3>4</h3>
-          </div>
-        </Link>
 
       </div>
 
+       {/* DASHBOARD CARDS */}
+            <div className="dashboard-cards">
+
+              <Link to="/total-received" className="card-link">
+                <div className="crm-card card-blue">
+                  <div className="crm-card-icon">₹</div>
+                  <div className="crm-card-content">
+                    <span className="crm-card-title">Today's Collection</span>
+                    <span className="crm-card-value">
+                      ₹{todaysCollection.toLocaleString()}
+                    </span>
+                    <span className="crm-card-sub">Today</span>
+                  </div>
+                </div>
+              </Link>
+
+              <Link to="/total-collection" className="card-link">
+                <div className="crm-card card-red">
+                  <div className="crm-card-icon">
+                    <i className="fa fa-calendar"></i>
+                  </div>
+                  <div className="crm-card-content">
+                    <span className="crm-card-title">Monthly Booking Report</span>
+                    <span className="crm-card-value">
+                   </span>
+                    <span className="crm-card-sub">Current Month</span>
+                  </div>
+                </div>
+              </Link>
+
+
+              <Link to="/customers/active" className="card-link">
+                <div className="crm-card card-orange">
+                  <div className="crm-card-icon">
+                    <i className="fa fa-users"></i>
+                  </div>
+                  <div className="crm-card-content">
+                    <span className="crm-card-title">Active Customers</span>
+                    <span className="crm-card-value">{activeCustomers}</span>
+                    <span className="crm-card-sub">Currently Active</span>
+                  </div>
+                </div>
+              </Link>
+
+              <Link to="/dashboard/99villa" className="card-link">
+                <div className="crm-card card-green">
+                  <div className="crm-card-icon">
+                    <i className="fa fa-home"></i>
+                  </div>
+                  <div className="crm-card-content">
+                    <span className="crm-card-title">99 Villa Project</span>
+                    <span className="crm-card-value">Bungalow / Plots</span>
+                    <span className="crm-card-sub">Project Overview</span>
+                  </div>
+                </div>
+              </Link>
+
+              <Link to="/project-location" className="card-link">
+                <div className="crm-card card-purple">
+                  <div className="crm-card-icon">
+                    <i className="fa fa-map-marker"></i>
+                  </div>
+                  <div className="crm-card-content">
+                    <span className="crm-card-title">Projects</span>
+                    <span className="crm-card-value">4</span>
+                    <span className="crm-card-sub">Active Locations</span>
+                  </div>
+                </div>
+              </Link>
+            </div>
       {/* CHARTS */}
       <div className="charts-row">
         <div className="chart-card">
           <h3>Customer Status Overview</h3>
-          <StatusPieChart data={filteredCustomers} />
+          <StatusPieChart data={validCustomers} />
         </div>
         <div className="chart-card">
-          <h3>Year-wise Active / SaleDeed</h3>
+          <h3>Year-wise Booking / SaleDeed</h3>
           <StatusMonthGraphSpark />
         </div>
       </div>
-
       {/* TABLES */}
       <div className="tables-row">
         <div className="table-card">
           <h3>Recent Customers</h3>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Customer ID</th>
-                <th>Name</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredCustomers.slice(0, 10).map((c) => (
-                <tr key={c._id}>
-                  <td>{c.date ? new Date(c.date).toLocaleDateString() : "-"}</td>
-                  <td>{c.customerId || "-"}</td>
-                  <td>{c.name || "-"}</td>
-                  <td>{c.status || "-"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+         <table className="data-table">
+           <thead>
+             <tr>
+               <th>Date</th>
+               <th>Customer ID</th>
+               <th>Name</th>
+               <th>Received Amount</th>
+               <th>Status</th>
+             </tr>
+           </thead>
+
+           <tbody>
+             {validCustomers.length === 0 ? (
+               <tr>
+                 <td colSpan="5" style={{ textAlign: "center", padding: "15px" }}>
+                   No customers found
+                 </td>
+               </tr>
+             ) : (
+               validCustomers.slice(0, 10).map((c) => {
+                 let received = Number(c.bookingAmount || 0);
+
+                 c.installments?.forEach((i) => {
+                   received +=
+                     Number(i.receivedAmount) ||
+                     Number(i.installmentAmount) ||
+                     Number(i.amount) ||
+                     0;
+                 });
+
+                 return (
+                   <tr key={c._id}>
+                     <td>
+                       {c.date
+                         ? dayStart(parseDate(c.date)).toLocaleDateString("en-GB")
+                         : "-"}
+                     </td>
+                     <td>{c.customerId || "-"}</td>
+                     <td>{c.name || "-"}</td>
+                     <td>₹{received.toLocaleString()}</td>
+                     <td>{c.status || "-"}</td>
+                   </tr>
+                 );
+               })
+             )}
+           </tbody>
+         </table>
+
         </div>
 
         <div className="table-card">
@@ -275,19 +343,21 @@ const Dashboard = ({ handleLogout }) => {
             </thead>
             <tbody>
               {nextDuePayments.map((p, i) => {
-                const due = new Date(p.date);
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const isOverdue = due < today;
-                const isToday = due.getTime() === today.getTime();
-
+                const due = dayStart(parseDate(p.date));
+                const today = dayStart(new Date());
                 return (
                   <tr key={i}>
                     <td>{p.customerId}</td>
                     <td>{p.name}</td>
                     <td>{due.toLocaleDateString()}</td>
                     <td>₹{p.amount.toLocaleString()}</td>
-                    <td>{isOverdue ? "Overdue" : isToday ? "Today" : "Upcoming"}</td>
+                    <td>
+                      {due < today
+                        ? "Overdue"
+                        : due.getTime() === today.getTime()
+                        ? "Today"
+                        : "Upcoming"}
+                    </td>
                   </tr>
                 );
               })}

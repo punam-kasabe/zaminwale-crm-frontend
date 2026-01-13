@@ -8,67 +8,93 @@ import {
   BarElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
 } from "chart.js";
 
 // Chart.js register
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+);
+
+// ---------------- HELPERS ----------------
+const normalize = (v = "") =>
+  v.toString().toLowerCase().replace(/\s+/g, "");
+
+const parseDate = (raw) => {
+  if (!raw) return null;
+  const d = new Date(raw);
+  return isNaN(d) ? null : d;
+};
+// -----------------------------------------
+
 const StatusMonthGraphSpark = () => {
   const { customers } = useContext(CustomerContext);
 
-  // Year-wise Active / SaleDeed counts calculation
   const chartData = useMemo(() => {
-    const years = [2022, 2023, 2024, 2025];
-    const activeCounts = [];
-    const saleDeedCounts = [];
+    const now = new Date();
+    const currentYear = now.getFullYear();
 
-    years.forEach((year) => {
-      const yearCustomers = customers.filter((c) => {
-        if (!c.date) return false;
-        const d = new Date(c.date);
-        return d.getFullYear() === year;
-      });
-      const active = yearCustomers.filter(
-        (c) =>
-          c.status?.toLowerCase() === "active" ||
-          c.status?.toLowerCase() === "active customer"
-      ).length;
-      const saleDeed = yearCustomers.filter(
-        (c) =>
-          c.status?.toLowerCase() === "saledeed done" ||
-          c.status?.toLowerCase() === "sale deed done"
-      ).length;
-      activeCounts.push(active);
-      saleDeedCounts.push(saleDeed);
+    const months = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+
+    const activeCounts = Array(12).fill(0);
+    const saleDeedCounts = Array(12).fill(0);
+
+    customers.forEach((c) => {
+      const d = parseDate(c.date);
+      if (!d || d.getFullYear() !== currentYear) return;
+
+      const m = d.getMonth(); // 0–11
+      const status = normalize(c.status);
+
+      if (status === "active" || status === "activecustomer") {
+        activeCounts[m]++;
+      }
+
+      if (status === "saledeeddone" || status === "saledeed") {
+        saleDeedCounts[m]++;
+      }
     });
+
     return {
-      labels: years,
+      labels: months,
       datasets: [
         {
-          label: "Active",
+          label: "Booking",
           data: activeCounts,
-          backgroundColor: "#1E90FF" // Orange
+          backgroundColor: "#1E90FF",
         },
         {
-          label: "SaleDeed",
+          label: "SaleDeed Done",
           data: saleDeedCounts,
-          backgroundColor: "#28A745" // Green
-        }
-      ]
+          backgroundColor: "#28A745",
+        },
+      ],
     };
   }, [customers]);
+
   const options = {
     responsive: true,
     plugins: {
       legend: { position: "top" },
-      title: { display: true, text: "Year-wise Active / SaleDeed Customers" }
+      title: {
+        display: true,
+        text: `Jan – Dec ${new Date().getFullYear()} (Booking / SaleDeed)`,
+      },
     },
     scales: {
       y: {
         beginAtZero: true,
-        ticks: { stepSize: 1 }
-      }
-    }
+        ticks: { stepSize: 1 },
+      },
+    },
   };
 
   return <Bar data={chartData} options={options} />;

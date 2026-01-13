@@ -1,33 +1,78 @@
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
+/* ================= DATE HELPERS ================= */
+
+/* Convert any date → JS Date (Excel readable) */
+const parseToExcelDate = (value) => {
+  if (!value) return null;
+
+  // already Date
+  if (value instanceof Date) return value;
+
+  // dd-mm-yyyy
+  if (typeof value === "string" && /^\d{2}-\d{2}-\d{4}$/.test(value)) {
+    const [dd, mm, yyyy] = value.split("-");
+    return new Date(yyyy, mm - 1, dd);
+  }
+
+  const d = new Date(value);
+  return isNaN(d) ? null : d;
+};
+
+/* ================= CORE EXPORT ================= */
+
 /**
  * Export multiple sheets to Excel
- * @param {Array} sheets - Array of objects: { sheetName: string, data: Array of objects }
+ * @param {Array} sheets - [{ sheetName, data }]
  */
 export const exportToExcel = (sheets) => {
   const workbook = XLSX.utils.book_new();
 
   sheets.forEach(({ sheetName, data }) => {
-    // Only export if data is not empty
-    if (data.length > 0) {
-      const ws = XLSX.utils.json_to_sheet(data);
-      XLSX.utils.book_append_sheet(workbook, ws, sheetName);
+    if (!data || data.length === 0) return;
+
+    const ws = XLSX.utils.json_to_sheet(data, {
+      cellDates: true   // ✅ IMPORTANT
+    });
+
+    /* ================= DATE FORMAT FIX ================= */
+    const range = XLSX.utils.decode_range(ws["!ref"]);
+
+    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+        const cell = ws[cellRef];
+
+        if (cell && cell.v instanceof Date) {
+          cell.t = "d";               // date type
+          cell.z = "dd-mm-yyyy";      // ✅ Excel format
+        }
+      }
     }
+
+    XLSX.utils.book_append_sheet(workbook, ws, sheetName);
   });
 
-  const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-  saveAs(new Blob([wbout], { type: "application/octet-stream" }), "CustomerData.xlsx");
+  const wbout = XLSX.write(workbook, {
+    bookType: "xlsx",
+    type: "array",
+    cellDates: true
+  });
+
+  saveAs(
+    new Blob([wbout], { type: "application/octet-stream" }),
+    "CustomerData.xlsx"
+  );
 };
 
-/**
- * Helper to prepare data and call exportToExcel
- * @param {Array} customers - Array of customer objects
- */
+/* ================= CUSTOMERS + INSTALLMENTS ================= */
+
 export const exportCustomersWithInstallments = (customers) => {
-  // Prepare customers data
+
+  /* ---------- CUSTOMERS SHEET ---------- */
   const customersData = customers.map(c => ({
-    Date: c.date || "-",
+    Date: parseToExcelDate(c.date),
     "Customer ID": c.customerId || "-",
     Name: c.name || "-",
     Address: c.address || "-",
@@ -47,32 +92,33 @@ export const exportCustomersWithInstallments = (customers) => {
     Bank: c.bankName || "-",
     "Payment Mode": c.paymentMode || "-",
     "Cheque No": c.chequeNo || "-",
-    "Cheque Date": c.chequeDate || "-",
+    "Cheque Date": parseToExcelDate(c.chequeDate),
     Remark: c.remark || "-",
     Status: c.status || "-",
-    "Calling By": c.callingBy || "-",
-    "Attending By": c.attendingBy || "-",
-    "Site Visiting By": c.siteVisitBy || "-",
-    "Closing By": c.closingBy || "-"
+    "Calling By": Array.isArray(c.callingBy) ? c.callingBy.join(" / ") : "-",
+    "Attending By": Array.isArray(c.attendingBy) ? c.attendingBy.join(" / ") : "-",
+    "Site Visiting By": Array.isArray(c.siteVisitBy) ? c.siteVisitBy.join(" / ") : "-",
+    "Closing By": Array.isArray(c.closingBy) ? c.closingBy.join(" / ") : "-"
   }));
 
-  // Prepare installments data
+  /* ---------- INSTALLMENTS SHEET ---------- */
   const installmentsData = [];
+
   customers.forEach(c => {
     if (c.installments?.length > 0) {
       c.installments.forEach(inst => {
         installmentsData.push({
           "Customer ID": c.customerId,
           "Installment No": inst.installmentNo || "-",
-          Date: inst.installmentDate || "-",
+          Date: parseToExcelDate(inst.installmentDate),
           Amount: inst.installmentAmount || "-",
           Received: inst.receivedAmount || "-",
           Balance: inst.balanceAmount || "-",
           Bank: inst.bankName || "-",
           Mode: inst.paymentMode || "-",
           "Cheque No / UTR": inst.chequeNo || "-",
-          "Cheque Date": inst.chequeDate || "-",
-          "Clear Date": inst.clearDate || "-",
+          "Cheque Date": parseToExcelDate(inst.chequeDate),
+          "Clear Date": parseToExcelDate(inst.clearDate),
           Remark: inst.remark || "-",
           Status: inst.status || "-"
         });
@@ -80,7 +126,7 @@ export const exportCustomersWithInstallments = (customers) => {
     }
   });
 
-  // Export both sheets
+  /* ---------- EXPORT ---------- */
   exportToExcel([
     { sheetName: "Customers", data: customersData },
     { sheetName: "Installments", data: installmentsData }

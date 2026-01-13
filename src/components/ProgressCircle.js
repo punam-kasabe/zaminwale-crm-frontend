@@ -11,13 +11,19 @@ const ProgressCircle = ({
 }) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const safeMax = max === 0 ? 1 : max; // prevent division by 0
-  const percent = Math.min(Math.max(value / safeMax, 0), 1); // 0 to 1
+
+  // prevent division by zero
+  const safeMax = max === 0 ? 1 : max;
+
+  // clamp between 0 and 1
+  const percent = Math.min(Math.max(value / safeMax, 0), 1);
+
   const offset = circumference * (1 - percent);
 
   return (
     <div style={{ position: "relative", display: "inline-block" }}>
       <svg width={size} height={size} className="progress-circle">
+        {/* Background Circle */}
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -26,6 +32,8 @@ const ProgressCircle = ({
           strokeWidth={strokeWidth}
           fill="none"
         />
+
+        {/* Progress Circle */}
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -39,16 +47,20 @@ const ProgressCircle = ({
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
         />
       </svg>
-      {showPercentage && (
-        <span style={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          fontSize: "0.8rem",
-          fontWeight: "600",
-          color: color
-        }}>
+
+      {/* Percentage Text (hidden at 100%) */}
+      {showPercentage && percent < 1 && (
+        <span
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            fontSize: "0.8rem",
+            fontWeight: "600",
+            color: color
+          }}
+        >
           {Math.round(percent * 100)}%
         </span>
       )}

@@ -1,494 +1,431 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
+import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import "../styles/Installments.css";
 
-// ---------------- Dynamic Pagination Component ----------------
+/* ================= DATE FORMAT ================= */
+const formatDMY = (date) => {
+  if (!date) return "-";
+  const d = new Date(date);
+  if (isNaN(d)) return "-";
+  return `${String(d.getDate()).padStart(2, "0")}-${String(
+    d.getMonth() + 1
+  ).padStart(2, "0")}-${d.getFullYear()}`;
+};
+
+/* ================= PAGINATION ================= */
 function Pagination({ totalPages, currentPage, onPageChange }) {
-  const handlePrev = () => {
-    if (currentPage > 1) onPageChange(currentPage - 1);
-  };
-
-  const handleNext = () => {
-    if (currentPage < totalPages) onPageChange(currentPage + 1);
-  };
-
-  const getVisiblePages = () => {
-    let start = Math.max(1, currentPage - 3);
-    let end = Math.min(totalPages, currentPage + 3);
-    let pages = [];
-    for (let i = start; i <= end; i++) pages.push(i);
-    return pages;
-  };
-
+  if (totalPages <= 1) return null;
   return (
     <div className="pagination">
-      <button onClick={handlePrev} disabled={currentPage === 1}>
+      <button
+        disabled={currentPage === 1}
+        onClick={() => onPageChange(currentPage - 1)}
+      >
         Prev
-      </button>
-      {getVisiblePages().map((p) => (
-        <button
-          key={p}
-          className={p === currentPage ? "active-page" : ""}
-          onClick={() => onPageChange(p)}
-        >
-          {p}
-        </button>
-      ))}
-      <button onClick={handleNext} disabled={currentPage === totalPages}>
-        Next
       </button>
       <span>
         Page {currentPage} / {totalPages}
       </span>
+      <button
+        disabled={currentPage === totalPages}
+        onClick={() => onPageChange(currentPage + 1)}
+      >
+        Next
+      </button>
     </div>
   );
 }
 
-// ---------------- Installments Component ----------------
 function Installments() {
   const [customers, setCustomers] = useState([]);
   const [expanded, setExpanded] = useState({});
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [installmentData, setInstallmentData] = useState({});
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [sortField, setSortField] = useState("name");
-  const [sortOrder, setSortOrder] = useState("asc");
+  const ITEMS_PER_PAGE = 15;
 
-  // ---------------- Fetch Customers ----------------
-  useEffect(() => {
-    axios
-      .get("http://192.168.29.50:5001/api/customers")
-      .then((res) => {
-        const data = res.data.map((c) => ({
+  const [dateSort, setDateSort] = useState("desc");
+  const [idSort, setIdSort] = useState(null);
+
+  const [showModal, setShowModal] = useState(false);
+  const [activeCustomer, setActiveCustomer] = useState(null);
+  const [activeInstallment, setActiveInstallment] = useState(null);
+
+  const [form, setForm] = useState({
+    installmentDate: "",
+    installmentAmount: "",
+    receivedAmount: "",
+    balanceAmount: "",
+    bankName: "",
+    paymentMode: "Cash",
+    chequeNo: "",
+    chequeDate: "",
+    status: "Pending",
+    remark: "",
+  });
+
+  /* ================= FETCH ================= */
+  const fetchCustomers = () => {
+    axios.get("http://192.168.29.50:5001/api/customers").then((res) => {
+      const data = res.data.map((c) => {
+        const totalAmount = c.installments?.reduce(
+          (acc, i) => acc + parseFloat(i.installmentAmount || 0),
+          0
+        );
+        const receivedAmount = c.installments?.reduce(
+          (acc, i) => acc + parseFloat(i.receivedAmount || 0),
+          0
+        );
+        const balanceAmount = totalAmount - receivedAmount;
+        return {
           ...c,
-          installments: Array.isArray(c.installments) ? c.installments : [],
-        }));
-        setCustomers(data);
-      })
-      .catch((err) => console.error("Error fetching customers:", err));
-  }, []);
-
-  const toggleExpand = (customerId) => {
-    setExpanded((prev) => ({ ...prev, [customerId]: !prev[customerId] }));
-  };
-
-  const openModal = (customer) => {
-    setSelectedCustomer(customer);
-    setInstallmentData({
-      installmentNo: (customer.installments?.length || 0) + 1,
-      installmentDate: "",
-      nextDueDate: "",
-      installmentAmount: "",
-      receivedAmount: "",
-      balanceAmount: customer.totalAmount - (customer.receivedAmount || 0),
-      bankName: "",
-      chequeNo: "",
-      chequeDate: "",
-      clearDate: "",
-      remark: "",
-      status: "Pending",
+          totalAmount,
+          receivedAmount,
+          balanceAmount,
+        };
+      });
+      setCustomers(data);
     });
-    setModalOpen(true);
+  };
+  useEffect(fetchCustomers, []);
+
+  /* ================= FILTER ================= */
+  const isSameMonth = (date) => {
+    if (!date || !selectedMonth) return false;
+    const d = new Date(date);
+    const m = new Date(selectedMonth);
+    return d.getMonth() === m.getMonth() && d.getFullYear() === m.getFullYear();
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setInstallmentData((prev) => ({ ...prev, [name]: value }));
-  };
+  const filteredCustomers = useMemo(() => {
+    setCurrentPage(1);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const updatedInstallments = [
-        ...(selectedCustomer.installments || []),
-        installmentData,
-      ];
-      const receivedAmountTotal = updatedInstallments.reduce(
-        (acc, inst) => acc + Number(inst.receivedAmount || 0),
+    let data = customers
+      .map((c) => ({
+        ...c,
+        filteredInstallments: selectedMonth
+          ? c.installments?.filter((i) => isSameMonth(i.installmentDate))
+          : c.installments,
+      }))
+      .filter(
+        (c) =>
+          (c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            c.customerId?.toLowerCase().includes(searchTerm.toLowerCase())) &&
+          c.filteredInstallments?.length > 0
+      );
+
+    if (idSort) {
+      data.sort((a, b) => {
+        const comp = a.customerId.localeCompare(b.customerId);
+        return idSort === "asc" ? comp : -comp;
+      });
+    } else {
+      data.sort((a, b) => {
+        const da = new Date(a.date || a.createdAt);
+        const db = new Date(b.date || b.createdAt);
+        return dateSort === "asc" ? da - db : db - da;
+      });
+    }
+
+    return data;
+  }, [customers, searchTerm, selectedMonth, dateSort, idSort]);
+
+  const totalPages = Math.ceil(filteredCustomers.length / ITEMS_PER_PAGE);
+  const paginatedCustomers = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredCustomers.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredCustomers, currentPage]);
+
+  /* ================= MODAL ================= */
+  const openModal = (customer, installment = null) => {
+    setActiveCustomer(customer);
+    setActiveInstallment(installment);
+
+    // 🔹 Total received amount of all previous installments
+    let receivedAmount = 0;
+    if (!installment && customer.installments?.length) {
+      receivedAmount = customer.installments.reduce(
+        (acc, i) => acc + parseFloat(i.receivedAmount || 0),
         0
       );
+    }
 
+    setForm(
+      installment
+        ? { ...installment }
+        : {
+            installmentDate: "",
+            installmentAmount: "",
+            receivedAmount: receivedAmount, // 🔹 auto-fill received amount
+            balanceAmount: "",
+            bankName: "",
+            paymentMode: "Cash",
+            chequeNo: "",
+            chequeDate: "",
+            status: "Paid",
+            remark: "",
+          }
+    );
+
+    setShowModal(true);
+  };
+
+  const handleFormChange = (field, value) => {
+    let updatedForm = { ...form, [field]: value };
+    const installmentAmt = parseFloat(
+      field === "installmentAmount" ? value : updatedForm.installmentAmount
+    );
+    const receivedAmt = parseFloat(
+      field === "receivedAmount" ? value : updatedForm.receivedAmount
+    );
+
+    if (!isNaN(installmentAmt) && !isNaN(receivedAmt)) {
+      updatedForm.balanceAmount = (installmentAmt - receivedAmt).toFixed(2);
+    }
+    setForm(updatedForm);
+  };
+
+  const saveInstallment = async () => {
+    if (activeInstallment) {
       await axios.put(
-        `http://localhost:5001/api/customers/${selectedCustomer._id}`,
-        {
-          installments: updatedInstallments,
-          receivedAmount: receivedAmountTotal,
-          balanceAmount:
-            selectedCustomer.totalAmount - receivedAmountTotal,
-        }
+        `http://192.168.29.50:5001/api/customers/${activeCustomer._id}/installments/${activeInstallment._id}`,
+        form
       );
+    } else {
+      await axios.post(
+        `http://192.168.29.50:5001/api/customers/${activeCustomer._id}/installments`,
+        form
+      );
+    }
+    setShowModal(false);
+    fetchCustomers();
+  };
 
-      setCustomers((prev) =>
-        prev.map((c) =>
-          c._id === selectedCustomer._id
-            ? {
-                ...c,
-                installments: updatedInstallments,
-                receivedAmount: receivedAmountTotal,
-                balanceAmount:
-                  selectedCustomer.totalAmount - receivedAmountTotal,
-              }
-            : c
-        )
+  const deleteInstallment = async (cid, iid) => {
+    if (window.confirm("Delete this installment?")) {
+      await axios.delete(
+        `http://192.168.29.50:5001/api/customers/${cid}/installments/${iid}`
       );
-      setModalOpen(false);
-    } catch (err) {
-      console.error("Error adding installment:", err);
+      fetchCustomers();
     }
   };
 
-  // ---------------- Filter & Sort ----------------
-  const filteredCustomers = customers.filter((c) => {
-    const term = searchTerm.trim().toLowerCase();
-    if (!term) return true;
-    const safe = (val) => (val ? String(val).toLowerCase().trim() : "");
-    return (
-      safe(c.name).includes(term) ||
-      safe(c.customerId).includes(term) ||
-      safe(c.location).includes(term) ||
-      safe(c.village).includes(term)
-    );
-  });
-
-  const sortedCustomers = [...filteredCustomers].sort((a, b) => {
-    const valA = (a[sortField] || "").toString().toLowerCase();
-    const valB = (b[sortField] || "").toString().toLowerCase();
-    if (!isNaN(valA) && !isNaN(valB)) {
-      return sortOrder === "asc" ? valA - valB : valB - valA;
-    }
-    return sortOrder === "asc"
-      ? valA.localeCompare(valB)
-      : valB.localeCompare(valA);
-  });
-
-  // ---------------- Pagination ----------------
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentCustomers = sortedCustomers.slice(
-    indexOfFirstItem,
-    indexOfLastItem
-  );
-  const totalPages = Math.ceil(sortedCustomers.length / itemsPerPage);
-
-  const changePage = (pageNumber) => setCurrentPage(pageNumber);
-  const changeItemsPerPage = (e) => {
-    setItemsPerPage(Number(e.target.value));
-    setCurrentPage(1);
-  };
-
-  // ---------------- Export CSV ----------------
-  const exportCSV = () => {
-    const headers = [
-      "Customer ID",
-      "Name",
-      "Location",
-      "Village",
-      "Booking Area",
-      "Total Amount",
-      "Booking Amount",
-      "Received Amount",
-      "Balance Amount",
-      "Total Installments",
-    ];
-    const rows = sortedCustomers.map((c) => [
-      c.customerId,
-      c.name,
-      c.location,
-      c.village || "-",
-      c.bookingArea || "-",
-      c.totalAmount,
-      c.bookingAmount || 0,
-      c.receivedAmount,
-      c.balanceAmount,
-      c.installments?.length || 0,
-    ]);
-    const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
-    saveAs(
-      new Blob([csv], { type: "text/csv;charset=utf-8;" }),
-      "InstallmentsData.csv"
-    );
+  const exportToExcel = () => {
+    const rows = [];
+    filteredCustomers.forEach((c) => {
+      c.filteredInstallments.forEach((i) => {
+        rows.push({
+          "Customer ID": c.customerId,
+          Name: c.name,
+          "Total Amount": c.totalAmount,
+          Received: c.receivedAmount,
+          Balance: c.balanceAmount,
+          "Installment Date": formatDMY(i.installmentDate),
+          Amount: i.installmentAmount,
+          Bank: i.bankName,
+          Mode: i.paymentMode,
+          Cheque: i.chequeNo,
+          Status: i.status,
+        });
+      });
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Installments");
+    const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    saveAs(new Blob([buf]), "Installments.xlsx");
   };
 
   return (
     <div className="installment-page-container">
-      <h2>Installments</h2>
+      <h2>Installments Management</h2>
 
-      {/* ---------- Controls ---------- */}
       <div className="controls">
         <input
-          type="text"
-          placeholder="Search by ID, Name, Location or Village"
+          className="search-input"
+          placeholder="Search by Name / ID"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-        <button onClick={exportCSV}>Export CSV</button>
-        <select value={sortField} onChange={(e) => setSortField(e.target.value)}>
-          <option value="name">Sort by Name</option>
-          <option value="customerId">Sort by Customer ID</option>
-          <option value="location">Sort by Location</option>
-          <option value="totalAmount">Sort by Total Amount</option>
-          <option value="balanceAmount">Sort by Balance Amount</option>
-        </select>
-        <button
-          onClick={() =>
-            setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
-          }
-        >
-          {sortOrder === "asc" ? "⬆ Asc" : "⬇ Desc"}
-        </button>
-        <select value={itemsPerPage} onChange={changeItemsPerPage}>
-          {[5, 10, 15, 20, 25, 50, 100].map((num) => (
-            <option key={num} value={num}>
-              {num}
-            </option>
-          ))}
-        </select>
+        <input
+          type="month"
+          value={selectedMonth}
+          onChange={(e) => setSelectedMonth(e.target.value)}
+        />
+        <button onClick={exportToExcel}>Export Excel</button>
       </div>
 
-      {/* ---------- Table ---------- */}
-      <table className="installment-table">
-        <thead>
-          <tr>
-            <th>Customer ID</th>
-            <th>Name</th>
-            <th>Location</th>
-            <th>Village</th>
-            <th>Booking Area</th>
-            <th>Total Amount</th>
-            <th>Booking Amount</th>
-            <th>Received Amount</th>
-            <th>Balance Amount</th>
-            <th>Total Installments</th>
-            <th>Installments</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {currentCustomers.map((cust) => (
-            <React.Fragment key={cust._id}>
-              <tr>
-                <td>{cust.customerId}</td>
-                <td>{cust.name}</td>
-                <td>{cust.location}</td>
-                <td>{cust.village || "-"}</td>
-                <td>{cust.bookingArea || "-"}</td>
-                <td>{cust.totalAmount || 0}</td>
-                <td style={{ color: "#007bff", fontWeight: "bold" }}>
-                  {cust.bookingAmount || 0}
-                </td>
-                <td style={{ color: "green", fontWeight: "bold" }}>
-                  {cust.receivedAmount || 0}
-                </td>
-                <td style={{ color: "red", fontWeight: "bold" }}>
-                  {cust.balanceAmount || 0}
-                </td>
-                <td>{cust.installments?.length || 0}</td>
-                <td>
-                  <button onClick={() => toggleExpand(cust._id)}>
-                    {expanded[cust._id] ? "Hide" : "Show"}
-                  </button>
-                </td>
-                <td>
-                  <button className="add-btn" onClick={() => openModal(cust)}>
-                    Add Installment
-                  </button>
-                </td>
-              </tr>
-
-              {expanded[cust._id] && (
-                <tr className="installment-row">
-                  <td colSpan={12}>
-                    <table className="inner-installment-table">
-                      <thead>
-                        <tr>
-                          <th>Installment No</th>
-                          <th>Installment Date</th>
-                          <th>Next Due Date</th>
-                          <th>Installment Amount</th>
-                          <th>Received</th>
-                          <th>Balance</th>
-                          <th>Bank</th>
-                          <th>Cheque No</th>
-                          <th>Cheque Date</th>
-                          <th>Clear Date</th>
-                          <th>Remark</th>
-                          <th>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {cust.installments.length > 0 ? (
-                          cust.installments.map((inst, idx) => (
-                            <tr key={idx}>
-                              <td>{inst.installmentNo || idx + 1}</td>
-                              <td>{inst.installmentDate || "-"}</td>
-                              <td>{inst.nextDueDate || ""}</td>
-                              <td>{inst.installmentAmount || "-"}</td>
-                              <td style={{ color: "green", fontWeight: "bold" }}>
-                                {inst.receivedAmount || "-"}
-                              </td>
-                              <td style={{ color: "red", fontWeight: "bold" }}>
-                                {inst.balanceAmount || "-"}
-                              </td>
-                              <td>{inst.bankName || "-"}</td>
-                              <td>{inst.chequeNo || "-"}</td>
-                              <td>{inst.chequeDate || "-"}</td>
-                              <td>{inst.clearDate || "-"}</td>
-                              <td>{inst.remark || "-"}</td>
-                              <td>{inst.status || "-"}</td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan={12} style={{ textAlign: "center" }}>
-                              No Installments Added
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
+      <div className="table-wrapper">
+        <table className="installment-table">
+          <thead>
+            <tr>
+              <th>Sr No</th>
+              <th>Customer ID</th>
+              <th>Name</th>
+              <th>Village</th>
+              <th>Total Amount</th>
+              <th>Received</th>
+              <th>Installments</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedCustomers.map((c, idx) => (
+              <React.Fragment key={c._id}>
+                <tr>
+                  <td>{(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}</td>
+                  <td>{c.customerId}</td>
+                  <td>{c.name}</td>
+                  <td>{c.village}</td>
+                  <td>{c.totalAmount}</td>
+                  <td>{c.receivedAmount}</td>
+                  <td>{c.filteredInstallments.length}</td>
+                  <td>
+                    <button
+                      onClick={() =>
+                        setExpanded((p) => ({ ...p, [c._id]: !p[c._id] }))
+                      }
+                    >
+                      {expanded[c._id] ? "Hide" : "Show"}
+                    </button>
+                    <button onClick={() => openModal(c)}>+ Add</button>
                   </td>
                 </tr>
-              )}
-            </React.Fragment>
-          ))}
-        </tbody>
-      </table>
 
-      {/* ---------- Dynamic Pagination ---------- */}
+                {expanded[c._id] && (
+                  <tr>
+                    <td colSpan="9">
+                      <table className="inner-installment-table">
+                        <thead>
+                          <tr>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>Received</th>
+                            <th>Balance</th>
+                            <th>Bank</th>
+                            <th>Mode</th>
+                            <th>Cheque</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {c.filteredInstallments.map((i) => (
+                            <tr key={i._id}>
+                              <td>{formatDMY(i.installmentDate)}</td>
+                              <td>{i.installmentAmount}</td>
+                              <td>{i.receivedAmount}</td>
+                              <td>{i.balanceAmount}</td>
+                              <td>{i.bankName || "-"}</td>
+                              <td>{i.paymentMode}</td>
+                              <td>{i.chequeNo || "-"}</td>
+                              <td>{i.status}</td>
+                              <td>
+                                <button onClick={() => openModal(c, i)}>Edit</button>
+                                <button
+                                  onClick={() => deleteInstallment(c._id, i._id)}
+                                >
+                                  Delete
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
       <Pagination
         totalPages={totalPages}
         currentPage={currentPage}
-        onPageChange={(p) => setCurrentPage(p)}
+        onPageChange={setCurrentPage}
       />
 
-      {/* ---------- Modal ---------- */}
-      {modalOpen && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <h3>Add Installment for {selectedCustomer.name}</h3>
-            <form onSubmit={handleSubmit}>
-              <label>
-                Installment No:
-                <input
-                  type="number"
-                  name="installmentNo"
-                  value={installmentData.installmentNo}
-                  readOnly
-                />
-              </label>
-              <label>
-                Installment Date:
-                <input
-                  type="date"
-                  name="installmentDate"
-                  value={installmentData.installmentDate}
-                  onChange={handleChange}
-                  required
-                />
-              </label>
-              <label>
-                Next Due Date:
-                <input
-                  type="date"
-                  name="nextDueDate"
-                  value={installmentData.nextDueDate}
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Installment Amount:
-                <input
-                  type="number"
-                  name="installmentAmount"
-                  value={installmentData.installmentAmount}
-                  onChange={handleChange}
-                  required
-                />
-              </label>
-              <label>
-                Received Amount:
-                <input
-                  type="number"
-                  name="receivedAmount"
-                  value={installmentData.receivedAmount}
-                  onChange={handleChange}
-                  required
-                />
-              </label>
-              <label>
-                Balance Amount:
-                <input
-                  type="number"
-                  name="balanceAmount"
-                  value={installmentData.balanceAmount}
-                  readOnly
-                />
-              </label>
-              <label>
-                Bank Name:
-                <input
-                  type="text"
-                  name="bankName"
-                  value={installmentData.bankName}
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Cheque No:
-                <input
-                  type="text"
-                  name="chequeNo"
-                  value={installmentData.chequeNo}
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Cheque Date:
-                <input
-                  type="date"
-                  name="chequeDate"
-                  value={installmentData.chequeDate}
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Clear Date:
-                <input
-                  type="date"
-                  name="clearDate"
-                  value={installmentData.clearDate}
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Remark:
-                <input
-                  type="text"
-                  name="remark"
-                  value={installmentData.remark}
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Status:
-                <select
-                  name="status"
-                  value={installmentData.status}
-                  onChange={handleChange}
-                >
-                  <option value="Pending">Pending</option>
-                  <option value="Paid">Paid</option>
-                </select>
-              </label>
-              <button type="submit">Add Installment</button>
-              <button type="button" onClick={() => setModalOpen(false)}>
-                Cancel
-              </button>
-            </form>
+      {/* ================= MODAL ================= */}
+      {showModal && (
+        <div className="modal">
+          <div className="modal-box">
+            <h3>{activeInstallment ? "Edit Installment" : "Add Installment"}</h3>
+
+            <input
+              type="date"
+              value={form.installmentDate}
+              onChange={(e) => handleFormChange("installmentDate", e.target.value)}
+              placeholder="Installment Date"
+            />
+            <input
+              type="number"
+              value={form.installmentAmount}
+              onChange={(e) =>
+                handleFormChange("installmentAmount", e.target.value)
+              }
+              placeholder="Installment Amount"
+            />
+            <input
+              type="number"
+              value={form.receivedAmount}
+              onChange={(e) =>
+                handleFormChange("receivedAmount", e.target.value)
+              }
+              placeholder="Received Amount"
+            />
+            <input
+              type="number"
+              value={form.balanceAmount}
+              readOnly
+              placeholder="Balance Amount"
+            />
+            <input
+              type="text"
+              value={form.bankName}
+              onChange={(e) => handleFormChange("bankName", e.target.value)}
+              placeholder="Bank Name"
+            />
+            <select
+              value={form.paymentMode}
+              onChange={(e) => handleFormChange("paymentMode", e.target.value)}
+            >
+              <option value="Cash">Cash</option>
+              <option value="Cheque">Cheque</option>
+              <option value="Online">Online</option>
+            </select>
+            <input
+              type="text"
+              value={form.chequeNo}
+              onChange={(e) => handleFormChange("chequeNo", e.target.value)}
+              placeholder="Cheque No"
+            />
+            <input
+              type="date"
+              value={form.chequeDate}
+              onChange={(e) => handleFormChange("chequeDate", e.target.value)}
+              placeholder="Cheque Date"
+            />
+            <select
+              value={form.status}
+              onChange={(e) => handleFormChange("status", e.target.value)}
+            >
+              <option value="Pending">Pending</option>
+              <option value="Paid">Paid</option>
+            </select>
+            <textarea
+              value={form.remark}
+              onChange={(e) => handleFormChange("remark", e.target.value)}
+              placeholder="Remark"
+            />
+
+            <div className="modal-actions">
+              <button onClick={saveInstallment}>Save</button>
+              <button onClick={() => setShowModal(false)}>Cancel</button>
+            </div>
           </div>
         </div>
       )}

@@ -81,7 +81,8 @@
 }
 
 .activity-table th {
-  background-color: #216FED;
+      background: linear-gradient(#404243, #2b5f85, #2465cf); /* Dark Gray */
+
   color: #fff;
   font-weight: 600;
 }

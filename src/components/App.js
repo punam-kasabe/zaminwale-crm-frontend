@@ -1,11 +1,5 @@
 import React, { useState, useEffect } from "react";
-import {
-  Routes,
-  Route,
-  Navigate,
-  useNavigate,
-  useLocation,
-} from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 
 import Sidebar from "./Sidebar.js";
 import Dashboard from "./Dashboard.js";
@@ -24,34 +18,39 @@ import InstallmentCollection from "./InstallmentCollection.js";
 import ActivityLogPage from "./ActivityLogPage.js";
 import EditReport from "./EditReport.js";
 import ActiveCustomers from "./ActiveCustomers.js";
+import InactiveCustomers from "./InactiveCustomers.js";
+import CustomerAnalytics from "./CustomerAnalytics.js";
 import TotalReceived from "./TotalReceived.js";
 import Profile from "./Profile.js";
 import TotalCollection from "./TotalCollection.js";
+import Villa99Revenue from "./Villa99Revenue.js";
 
+/* Context */
 import { CustomerProvider } from "../context/CustomerContext.js";
 import { NotificationProvider } from "../context/NotificationContext.js";
+
+/* 🎨 Theme CSS */
+import "../styles/newYearTheme.css"; // optional: remove if you want totally normal theme
 
 function App() {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 🔹 Load user from localStorage (refresh safe)
+  /* 🔹 Load user from localStorage */
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    if (storedUser) setUser(JSON.parse(storedUser));
   }, []);
 
-  // 🔹 Save last visited page (EXCEPT login)
+  /* 🔹 Save last visited page */
   useEffect(() => {
     if (user && location.pathname !== "/login") {
       localStorage.setItem("lastPage", location.pathname);
     }
   }, [location.pathname, user]);
 
-  // 🔹 Logout
+  /* 🔹 Logout */
   const handleLogout = () => {
     localStorage.removeItem("user");
     localStorage.removeItem("lastPage");
@@ -62,7 +61,10 @@ function App() {
   return (
     <CustomerProvider>
       <NotificationProvider>
-        <div className="app-container" style={{ display: "flex", minHeight: "100vh" }}>
+        <div
+          className="app-container"
+          style={{ display: "flex", minHeight: "100vh" }}
+        >
           {/* Sidebar */}
           {user && <Sidebar user={user} />}
 
@@ -79,11 +81,20 @@ function App() {
                   element={<Dashboard user={user} handleLogout={handleLogout} />}
                 />
 
+                {/* 99Villa Revenue */}
+                <Route
+                  path="/dashboard/99villa"
+                  element={<Villa99Revenue />}
+                />
+
                 {/* Profile */}
                 <Route path="/profile" element={<Profile user={user} />} />
 
                 {/* Customers */}
                 <Route path="/customers" element={<CustomerList user={user} />} />
+                <Route path="/customers/active" element={<ActiveCustomers />} />
+                <Route path="/customers/inactive" element={<InactiveCustomers />} />
+                <Route path="/customers/analytics" element={<CustomerAnalytics />} />
                 <Route path="/customers/:customerId" element={<CustomerDetails />} />
                 <Route
                   path="/customers/:customerId/installments"
@@ -101,12 +112,14 @@ function App() {
                 <Route path="/customer-preview/:id" element={<CustomerPreview />} />
 
                 {/* Projects */}
-                <Route path="/project/:projectName" element={<ProjectCustomersPage />} />
+                <Route
+                  path="/project/:projectName"
+                  element={<ProjectCustomersPage />}
+                />
                 <Route path="/project-location" element={<ProjectLocation />} />
 
                 {/* Logs & Reports */}
                 <Route path="/activity-log" element={<ActivityLogPage />} />
-                <Route path="/active-customers" element={<ActiveCustomers />} />
                 <Route path="/total-received" element={<TotalReceived />} />
                 <Route path="/total-collection" element={<TotalCollection />} />
 
@@ -120,7 +133,7 @@ function App() {
                   </>
                 )}
 
-                {/* ✅ DEFAULT → LAST PAGE (NOT dashboard) */}
+                {/* Default */}
                 <Route
                   path="*"
                   element={
