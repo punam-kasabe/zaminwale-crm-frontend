@@ -1,0 +1,136 @@
+/*components/styles/App.css*/
+
+html, body, #root {
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100%;
+  height: 100%;
+  background: #001a33 !important; /* DARK BLUE */
+}
+* {
+  font-family: 'Poppins', sans-serif !important;
+}
+
+/* MAIN LAYOUT */
+.app-container {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+  background: #001a33 !important; /* DARK BLUE */
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* SIDEBAR FIX */
+.sidebar {
+  height: 100vh;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* MAIN CONTENT AREA */
+.main-content {
+  flex: 1;
+  padding: 20px;
+  margin: 0 !important;
+  margin-left: 0px;
+  background: #001a33 !important; /* FULL DARK BLUE */
+  min-height: 100vh;
+  overflow-y: auto;
+}
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+/* ===== GLOBAL RESPONSIVE FIX ===== */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden; /* horizontal scroll बंद */
+}
+
+/* Table scroll on mobile */
+.table-responsive,
+.ac-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* Make all images/videos responsive */
+img,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Inputs & buttons full width on mobile */
+input,
+select,
+button {
+  max-width: 100%;
+}
+
+/* ===== MOBILE VIEW ===== */
+@media (max-width: 768px) {
+
+  /* Dashboard cards */
+  .ac-summary,
+  .dashboard-cards {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px;
+  }
+
+  /* Filters stack */
+  .ac-filters {
+    flex-direction: column !important;
+    gap: 10px;
+  }
+
+  .ac-filters input,
+  .ac-filters select,
+  .ac-filters button {
+    width: 100%;
+  }
+
+  /* Table text small */
+  table {
+    font-size: 12px;
+  }
+
+  /* Sidebar hide */
+  .sidebar {
+    position: fixed;
+    left: -100%;
+    top: 0;
+    height: 100vh;
+    transition: 0.3s;
+    z-index: 999;
+  }
+
+  .sidebar.open {
+    left: 0;
+  }
+
+  /* Main content full */
+  .main-content {
+    margin-left: 0 !important;
+  }
+}
+
+/* ===== VERY SMALL MOBILE ===== */
+@media (max-width: 480px) {
+
+  .ac-summary,
+  .dashboard-cards {
+    grid-template-columns: repeat(1, 1fr) !important;
+  }
+
+  h1, h2, h3 {
+    font-size: 18px;
+  }
+}
